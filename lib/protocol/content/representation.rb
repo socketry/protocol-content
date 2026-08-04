@@ -33,17 +33,21 @@ module Protocol
 			# @parameter parser [Parser] The parser used to decode the representation.
 			# @returns [Representation] The representation carried by the message.
 			def self.for(message, parser: self.parser)
-				return self.new(message.headers, message.body, parser: parser)
+				metadata = message.headers
+				content_type = Protocol::Media::Type.for(metadata["content-type"])
+				
+				return self.new(metadata, message.body, content_type: content_type, parser: parser)
 			end
 			
 			# Initialize a representation.
 			# @parameter metadata [Object] The representation metadata.
 			# @parameter body [Object | Nil] The encoded representation data.
+			# @parameter content_type [Protocol::Media::Type | Nil] The representation media type.
 			# @parameter parser [Parser] The parser used to decode the representation.
-			def initialize(metadata, body, parser: self.class.parser)
+			def initialize(metadata, body, content_type: nil, parser: self.class.parser)
 				@metadata = metadata
 				@body = body
-				@content_type = Protocol::Media::Type.for(metadata["content-type"])
+				@content_type = content_type
 				@parser = parser
 				@value = nil
 				@parsed = false

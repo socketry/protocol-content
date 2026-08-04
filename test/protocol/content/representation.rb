@@ -28,7 +28,8 @@ describe Protocol::Content::Representation do
 	it "constructs from explicit representation attributes" do
 		metadata = {"content-type" => "application/json"}
 		body = []
-		representation = subject.new(metadata, body, parser: parser)
+		content_type = Protocol::Media::Type.for("application/json")
+		representation = subject.new(metadata, body, content_type: content_type, parser: parser)
 		
 		expect(representation.metadata).to be_equal(metadata)
 		expect(representation.body).to be_equal(body)
@@ -81,7 +82,8 @@ describe Protocol::Content::Representation do
 		end
 		
 		metadata = {"content-type" => "application/x-empty"}
-		representation = subject.new(metadata, nil, parser: parser)
+		content_type = Protocol::Media::Type.for(metadata["content-type"])
+		representation = subject.new(metadata, nil, content_type: content_type, parser: parser)
 		
 		expect(representation.value).to be_nil
 		expect(representation.value).to be_nil
