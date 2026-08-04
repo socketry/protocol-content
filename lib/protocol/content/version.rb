@@ -5,8 +5,8 @@
 
 # @namespace
 module Protocol
-	# Models representations transferred between REST components.
-	module REST
+	# Models media-typed content carried by protocol messages.
+	module Content
 		VERSION = "0.1.0"
 	end
 end

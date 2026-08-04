@@ -4,4 +4,4 @@
 
 ### Added
 
-- Add symmetric request and response representations with media-type parser dispatch.
+- Add symmetric request and response content representations with media-type parser dispatch.

@@ -5,10 +5,13 @@
 
 require "protocol/media/type"
 
-require_relative "representation/parser"
+require_relative "content/version"
+require_relative "content/error"
+require_relative "content/parser"
 
 module Protocol
-	module REST
+	# @namespace
+	module Content
 		# A representation consists of encoded data and metadata describing that data.
 		class Representation
 			UNDEFINED = Object.new.freeze

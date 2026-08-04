@@ -3,9 +3,9 @@
 # Released under the MIT License.
 # Copyright, 2026, by Samuel Williams.
 
-require "protocol/rest/representation"
+require "protocol/content"
 
-describe Protocol::REST::Representation::Parser do
+describe Protocol::Content::Parser do
 	it "requires a callable handler" do
 		parser = subject.new
 		

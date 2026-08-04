@@ -3,16 +3,16 @@
 # Released under the MIT License.
 # Copyright, 2026, by Samuel Williams.
 
-require "protocol/rest/representation"
+require "protocol/content"
 
 require "protocol/http/request"
 require "protocol/http/response"
 
 require "json"
 
-describe Protocol::REST::Representation do
+describe Protocol::Content::Representation do
 	let(:parser) do
-		Protocol::REST::Representation::Parser.build do |parser|
+		Protocol::Content::Parser.build do |parser|
 			parser.register("application/json") do |representation|
 				JSON.parse(representation.body.join)
 			end
@@ -45,7 +45,7 @@ describe Protocol::REST::Representation do
 	
 	it "parses the value once" do
 		count = 0
-		parser = Protocol::REST::Representation::Parser.build do |parser|
+		parser = Protocol::Content::Parser.build do |parser|
 			parser.register("text/plain") do |representation|
 				count += 1
 				representation.body.join
@@ -62,7 +62,7 @@ describe Protocol::REST::Representation do
 	
 	it "memoizes nil values" do
 		count = 0
-		parser = Protocol::REST::Representation::Parser.build do |parser|
+		parser = Protocol::Content::Parser.build do |parser|
 			parser.register("application/x-empty") do
 				count += 1
 				nil
@@ -94,7 +94,7 @@ describe Protocol::REST::Representation do
 	end
 	
 	it "supports compatible media ranges" do
-		parser = Protocol::REST::Representation::Parser.build do |parser|
+		parser = Protocol::Content::Parser.build do |parser|
 			parser.register("text/*") do |representation|
 				representation.body.join
 			end
@@ -112,7 +112,7 @@ describe Protocol::REST::Representation do
 		
 		expect do
 			representation.value
-		end.to raise_exception(Protocol::REST::UnsupportedMediaTypeError) do |error|
+		end.to raise_exception(Protocol::Content::UnsupportedMediaTypeError) do |error|
 			expect(error.media_type.name).to be == "text/plain"
 		end
 	end
@@ -123,6 +123,6 @@ describe Protocol::REST::Representation do
 		
 		expect do
 			representation.value
-		end.to raise_exception(Protocol::REST::UnsupportedMediaTypeError, message: be == "Missing content type!")
+		end.to raise_exception(Protocol::Content::UnsupportedMediaTypeError, message: be == "Missing content type!")
 	end
 end

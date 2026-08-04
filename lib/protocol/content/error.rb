@@ -4,8 +4,8 @@
 # Copyright, 2026, by Samuel Williams.
 
 module Protocol
-	module REST
-		# A generic REST protocol error.
+	module Content
+		# A generic content error.
 		class Error < StandardError
 		end
 		

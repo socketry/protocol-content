@@ -1,24 +1,24 @@
-# Protocol::REST
+# Protocol::Content
 
-Provides transport-independent abstractions for REST representations.
+Provides transport-independent abstractions for media-typed content representations.
 
-[![Development Status](https://github.com/socketry/protocol-rest/workflows/Test/badge.svg)](https://github.com/socketry/protocol-rest/actions?workflow=Test)
+[![Development Status](https://github.com/socketry/protocol-content/workflows/Test/badge.svg)](https://github.com/socketry/protocol-content/actions?workflow=Test)
 
 ## Usage
 
 A representation associates encoded data with metadata describing that data. A parser selects an interpretation according to the representation's media type:
 
 ```ruby
-require "protocol/rest"
+require "protocol/content"
 require "json"
 
-parser = Protocol::REST::Representation::Parser.build do |parser|
+parser = Protocol::Content::Parser.build do |parser|
 	parser.register("application/json") do |representation|
 		JSON.parse(representation.body.join)
 	end
 end
 
-JSONRepresentation = Protocol::REST::Representation[parser]
+JSONRepresentation = Protocol::Content::Representation[parser]
 ```
 
 Representations can be constructed symmetrically from request and response messages. The message only needs to expose `headers` and `body`:
@@ -35,7 +35,7 @@ Parsing is lazy and memoized by each representation. Registered handlers receive
 
 ## Releases
 
-Please see the [project releases](https://github.com/socketry/protocol-rest/releases) for all releases.
+Please see the [project releases](https://github.com/socketry/protocol-content/releases) for all releases.
 
 ## Contributing
 
