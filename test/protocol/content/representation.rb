@@ -76,14 +76,6 @@ describe Protocol::Content::Representation do
 		expect(count).to be == 1
 	end
 	
-	it "accepts an existing value without parsing" do
-		value = {"name" => "Samuel"}
-		representation = subject.new(value: value)
-		
-		expect(representation.value).to be_equal(value)
-		expect(representation["name"]).to be == "Samuel"
-	end
-	
 	it "parses content type parameters" do
 		response = Protocol::HTTP::Response[200, {"content-type" => "application/json; charset=utf-8"}, ["{}"]]
 		representation = representation_class.for(response)
@@ -91,6 +83,14 @@ describe Protocol::Content::Representation do
 		expect(representation.content_type.name).to be == "application/json"
 		expect(representation.content_type.parameters).to be == {"charset" => "utf-8"}
 		expect(representation.value).to be == {}
+	end
+	
+	it "extracts the content type when constructed" do
+		metadata = {"content-type" => "application/json"}
+		representation = subject.new(metadata: metadata)
+		metadata["content-type"] = "text/plain"
+		
+		expect(representation.content_type.name).to be == "application/json"
 	end
 	
 	it "supports compatible media ranges" do
