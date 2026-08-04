@@ -26,16 +26,13 @@ describe Protocol::Content::Representation do
 	end
 	
 	it "constructs from explicit representation attributes" do
-		message = Object.new
-		metadata = {}
+		metadata = {"content-type" => "application/json"}
 		body = []
-		content_type = Protocol::Media::Type.for("application/json")
-		representation = subject.new(body, content_type, metadata: metadata, message: message, parser: parser)
+		representation = subject.new(metadata, body, parser: parser)
 		
-		expect(representation.message).to be_equal(message)
 		expect(representation.metadata).to be_equal(metadata)
 		expect(representation.body).to be_equal(body)
-		expect(representation.content_type).to be_equal(content_type)
+		expect(representation.content_type.name).to be == "application/json"
 		expect(representation.parser).to be_equal(parser)
 	end
 	
@@ -43,8 +40,8 @@ describe Protocol::Content::Representation do
 		request = Protocol::HTTP::Request["QUERY", "/users", {"content-type" => "application/json"}, ['{"user":{"name":"Samuel"}}']]
 		representation = representation_class.for(request)
 		
-		expect(representation.message).to be_equal(request)
 		expect(representation.metadata).to be_equal(request.headers)
+		expect(representation.body).to be_equal(request.body)
 		expect(representation["user"]["name"]).to be == "Samuel"
 	end
 	
@@ -52,8 +49,8 @@ describe Protocol::Content::Representation do
 		response = Protocol::HTTP::Response[200, {"content-type" => "application/json"}, ['{"status":"okay"}']]
 		representation = representation_class.for(response)
 		
-		expect(representation.message).to be_equal(response)
 		expect(representation.metadata).to be_equal(response.headers)
+		expect(representation.body).to be_equal(response.body)
 		expect(representation["status"]).to be == "okay"
 	end
 	
@@ -83,8 +80,8 @@ describe Protocol::Content::Representation do
 			end
 		end
 		
-		content_type = Protocol::Media::Type.for("application/x-empty")
-		representation = subject.new(nil, content_type, parser: parser)
+		metadata = {"content-type" => "application/x-empty"}
+		representation = subject.new(metadata, nil, parser: parser)
 		
 		expect(representation.value).to be_nil
 		expect(representation.value).to be_nil
