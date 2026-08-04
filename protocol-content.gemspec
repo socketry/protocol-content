@@ -6,7 +6,7 @@ Gem::Specification.new do |spec|
 	spec.name = "protocol-content"
 	spec.version = Protocol::Content::VERSION
 	
-	spec.summary = "Provides abstractions for media-typed content representations."
+	spec.summary = "Provides parsing for media-typed content."
 	spec.authors = ["Samuel Williams"]
 	spec.license = "MIT"
 	
@@ -21,5 +21,8 @@ Gem::Specification.new do |spec|
 	
 	spec.required_ruby_version = ">= 3.3"
 	
+	spec.add_dependency "json", "~> 2.0"
 	spec.add_dependency "protocol-media", "~> 0.1"
+	spec.add_dependency "protocol-multipart", "~> 0.6"
+	spec.add_dependency "protocol-url", "~> 0.10"
 end

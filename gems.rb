@@ -21,7 +21,6 @@ group :test do
 	gem "sus"
 	
 	gem "bake-test"
-	gem "protocol-http", "~> 0.67"
 end
 
 gem "rubocop", "~> 1.88", group: :test

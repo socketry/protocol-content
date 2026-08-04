@@ -4,12 +4,13 @@
 # Copyright, 2026, by Samuel Williams.
 
 require "protocol/media/map"
+require "protocol/media/type"
 
 require_relative "error"
 
 module Protocol
 	module Content
-		# Selects a representation parser according to its media type.
+		# Selects a content parser according to its media type.
 		class Parser
 			# Build and freeze a parser.
 			# @yields {|parser| ...} The mutable parser being configured.
@@ -28,9 +29,10 @@ module Protocol
 			
 			# Register a handler for a media type or range.
 			# @parameter media_range [String | Protocol::Media::Range] The accepted media type or range.
-			# @parameter handler [#call | Nil] The representation handler.
-			# @yields {|representation| ...} The representation to parse.
-			# 	@parameter representation [Representation] The encoded representation.
+			# @parameter handler [#call | Nil] The content handler.
+			# @yields {|input, media_type| ...} The content to parse.
+			# 	@parameter input [Object] The readable input.
+			# 	@parameter media_type [Protocol::Media::Type] The parsed media type.
 			# @returns [#call] The registered handler.
 			def register(media_range, handler = nil, &block)
 				if handler && block
@@ -40,21 +42,23 @@ module Protocol
 				handler ||= block
 				
 				unless handler&.respond_to?(:call)
-					raise ArgumentError, "A representation handler must respond to #call!"
+					raise ArgumentError, "A content handler must respond to #call!"
 				end
 				
 				@handlers[media_range] = handler
 				return handler
 			end
 			
-			# Parse a representation using the handler matching its media type.
-			# @parameter representation [Representation] The encoded representation.
-			# @returns [Object] The parsed representation value.
-			def parse(representation)
-				media_type = representation.content_type
+			# Parse content using the handler matching its media type.
+			# @parameter media_type [String | Protocol::Media::Type | Nil] The media type.
+			# @parameter input [Object] The readable input.
+			# @yields {...} An optional block forwarded to the selected content handler.
+			# @returns [Object] The parsed content value.
+			def parse(media_type, input, &block)
+				media_type = Protocol::Media::Type.for(media_type)
 				
 				if media_type && handler = @handlers[media_type]
-					return handler.call(representation)
+					return handler.call(input, media_type, &block)
 				end
 				
 				raise UnsupportedMediaTypeError, media_type

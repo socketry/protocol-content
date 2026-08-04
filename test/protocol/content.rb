@@ -10,8 +10,4 @@ describe Protocol::Content do
 		expect(Protocol::Content::VERSION).to be =~ /^\d+\.\d+\.\d+$/
 	end
 	
-	it "provides representations" do
-		expect(Protocol::Content::Representation).to be_a(Class)
-		expect(Protocol::Content::Parser).to be_a(Class)
-	end
 end

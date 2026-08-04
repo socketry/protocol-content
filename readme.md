@@ -1,37 +1,14 @@
 # Protocol::Content
 
-Provides transport-independent abstractions for media-typed content representations.
+Provides transport-independent parsing for media-typed content.
 
 [![Development Status](https://github.com/socketry/protocol-content/workflows/Test/badge.svg)](https://github.com/socketry/protocol-content/actions?workflow=Test)
 
 ## Usage
 
-A representation associates encoded data with metadata describing that data. A parser selects an interpretation according to the representation's media type:
+Please see the [project documentation](https://socketry.github.io/protocol-content/) for more details.
 
-```ruby
-require "protocol/content"
-require "json"
-
-parser = Protocol::Content::Parser.build do |parser|
-	parser.register("application/json") do |representation|
-		JSON.parse(representation.body.join)
-	end
-end
-
-JSONRepresentation = Protocol::Content::Representation[parser]
-```
-
-Representations can be constructed symmetrically from request and response messages. The message only needs to expose `headers` and `body`:
-
-```ruby
-representation = JSONRepresentation.for(request)
-representation["user"]["name"]
-
-representation = JSONRepresentation.for(response)
-representation.value
-```
-
-Parsing is lazy and memoized by each representation. Registered handlers receive the complete representation so they can inspect media-type parameters or stream the body when appropriate.
+  - [Getting Started](https://socketry.github.io/protocol-content/guides/getting-started/index) - This guide explains how to parse media-typed content using built-in and custom parsers.
 
 ## Releases
 

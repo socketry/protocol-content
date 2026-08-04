@@ -9,7 +9,15 @@ module Protocol
 		class Error < StandardError
 		end
 		
-		# Raised when no parser accepts a representation's media type.
+		# Raised when content cannot be parsed.
+		class ParseError < Error
+		end
+		
+		# Raised when content exceeds a configured parser limit.
+		class ContentTooLargeError < ParseError
+		end
+		
+		# Raised when no parser accepts a media type.
 		class UnsupportedMediaTypeError < Error
 			# Initialize the error.
 			# @parameter media_type [Protocol::Media::Type | Nil] The unsupported media type.
@@ -17,7 +25,7 @@ module Protocol
 				if media_type
 					super("Unsupported media type: #{media_type}")
 				else
-					super("Missing content type!")
+					super("Missing media type!")
 				end
 				
 				@media_type = media_type
