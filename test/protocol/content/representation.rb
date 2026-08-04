@@ -25,6 +25,20 @@ describe Protocol::Content::Representation do
 		expect(representation_class.parser).to be_equal(parser)
 	end
 	
+	it "constructs from explicit representation attributes" do
+		message = Object.new
+		metadata = {}
+		body = []
+		content_type = Protocol::Media::Type.for("application/json")
+		representation = subject.new(body, content_type, metadata: metadata, message: message, parser: parser)
+		
+		expect(representation.message).to be_equal(message)
+		expect(representation.metadata).to be_equal(metadata)
+		expect(representation.body).to be_equal(body)
+		expect(representation.content_type).to be_equal(content_type)
+		expect(representation.parser).to be_equal(parser)
+	end
+	
 	it "parses an inbound request representation" do
 		request = Protocol::HTTP::Request["QUERY", "/users", {"content-type" => "application/json"}, ['{"user":{"name":"Samuel"}}']]
 		representation = representation_class.for(request)
@@ -69,7 +83,8 @@ describe Protocol::Content::Representation do
 			end
 		end
 		
-		representation = subject.new(metadata: {"content-type" => "application/x-empty"}, parser: parser)
+		content_type = Protocol::Media::Type.for("application/x-empty")
+		representation = subject.new(nil, content_type, parser: parser)
 		
 		expect(representation.value).to be_nil
 		expect(representation.value).to be_nil
@@ -85,9 +100,10 @@ describe Protocol::Content::Representation do
 		expect(representation.value).to be == {}
 	end
 	
-	it "extracts the content type when constructed" do
+	it "extracts the content type when adapting a message" do
 		metadata = {"content-type" => "application/json"}
-		representation = subject.new(metadata: metadata)
+		message = Struct.new(:headers, :body).new(metadata, nil)
+		representation = subject.for(message)
 		metadata["content-type"] = "text/plain"
 		
 		expect(representation.content_type.name).to be == "application/json"
