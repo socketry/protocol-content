@@ -6,49 +6,7 @@
 module Protocol
 	module Content
 		module Parameters
-			OMITTED = Object.new.freeze
-			
-			class UploadedValue
-				def initialize(value)
-					@value = value
-				end
-				
-				attr :value
-			end
-			
-			module Values
-				def self.expected_type(type)
-					if type.respond_to?(:type)
-						return type.type
-					else
-						return type
-					end
-				end
-				
-				def self.materialize(value)
-					case value
-					when Hash
-						result = {}
-						value.each do |key, item|
-							# Remove omitted uploads while preserving the surrounding hierarchy:
-							unless item.equal?(OMITTED)
-								result[key.to_s] = materialize(item)
-							end
-						end
-						return result
-					when Array
-						# Remove omitted uploads while preserving accepted array values:
-						return value.filter_map do |item|
-							unless item.equal?(OMITTED)
-								materialize(item)
-							end
-						end
-					else
-						return value
-					end
-				end
-			end
-			
+			# Common behavior for fields in a parameter model.
 			class Field
 				def initialize(name, required:)
 					@name = name
@@ -121,7 +79,7 @@ module Protocol
 					end
 					
 					# Only values produced by an accepted upload handler are valid:
-					if value.is_a?(UploadedValue)
+					if value.is_a?(Values::Uploaded)
 						output[@name] = value.value
 					else
 						errors << Error.new(path, :invalid_type, expected: :upload, value: Values.materialize(value))
@@ -141,9 +99,9 @@ module Protocol
 					
 					value.each_with_index do |item, index|
 						case item
-						when UploadedValue
+						when Values::Uploaded
 							result << item.value
-						when OMITTED
+						when Values::OMITTED
 							# Unhandled uploads are consumed by the parser and omitted here:
 							next
 						else
@@ -207,7 +165,7 @@ module Protocol
 						item_path = path + [index]
 						
 						# Ignore uploads which were not accepted by the field:
-						if item.equal?(OMITTED)
+						if item.equal?(Values::OMITTED)
 							next
 						end
 						
@@ -294,7 +252,7 @@ module Protocol
 				end
 			end
 			
-			private_constant :OMITTED, :UploadedValue, :Values, :Field, :ValueField, :UploadField, :ArrayField, :NestedField
+			private_constant :Field, :ValueField, :UploadField, :ArrayField, :NestedField
 		end
 	end
 end
