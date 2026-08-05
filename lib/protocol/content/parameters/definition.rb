@@ -19,6 +19,22 @@ module Protocol
 			end
 			
 			module Values
+				def self.convert(type, value)
+					if type.respond_to?(:convert)
+						return type.convert(value)
+					else
+						return type.call(value)
+					end
+				end
+				
+				def self.expected_type(type)
+					if type.respond_to?(:type)
+						return type.type
+					else
+						return type
+					end
+				end
+				
 				def self.materialize(value)
 					case value
 					when Hash
@@ -58,19 +74,15 @@ module Protocol
 						if @nullable
 							output[@name] = nil
 						else
-							errors << Error.new(path, :invalid_type, expected: expected_type, value: value)
+							errors << Error.new(path, :invalid_type, expected: Values.expected_type(@type), value: value)
 						end
 						
 						return
 					end
 					
-					output[@name] = if @type.respond_to?(:convert)
-						@type.convert(value)
-					else
-						@type.call(value)
-					end
+					output[@name] = Values.convert(@type, value)
 				rescue ArgumentError, TypeError
-					errors << Error.new(path, :invalid_type, expected: expected_type, value: value)
+					errors << Error.new(path, :invalid_type, expected: Values.expected_type(@type), value: value)
 				end
 				
 				def freeze
@@ -78,15 +90,6 @@ module Protocol
 					super
 				end
 				
-				private
-				
-				def expected_type
-					if @type.respond_to?(:type)
-						return @type.type
-					else
-						return @type
-					end
-				end
 			end
 			
 			class Upload
@@ -117,6 +120,73 @@ module Protocol
 					@name.freeze
 					super
 				end
+			end
+			
+			class ArrayField
+				def initialize(name, type, definition, required:, nullable:)
+					@name = name
+					@type = Type.for(type) if type
+					@definition = definition
+					@required = required
+					@nullable = nullable
+				end
+				
+				attr :name
+				
+				def required?
+					return @required
+				end
+				
+				def apply(value, output, errors, path)
+					if value.nil?
+						if @nullable
+							output[@name] = nil
+						else
+							errors << Error.new(path, :invalid_type, expected: Array, value: value)
+						end
+						
+						return
+					end
+					
+					unless value.is_a?(Array)
+						errors << Error.new(path, :invalid_type, expected: Array, value: value)
+						return
+					end
+					
+					result = []
+					
+					value.each_with_index do |item, index|
+						item_path = path + [index]
+						
+						if @definition
+							result << @definition.apply(item, errors, item_path)
+						elsif @type
+							if item.nil?
+								errors << Error.new(item_path, :invalid_type, expected: Values.expected_type(@type), value: item)
+								next
+							end
+							
+							begin
+								item = Values.materialize(item)
+								item = Values.convert(@type, item)
+								result << item
+							rescue ArgumentError, TypeError
+								errors << Error.new(item_path, :invalid_type, expected: Values.expected_type(@type), value: item)
+							end
+						else
+							result << Values.materialize(item)
+						end
+					end
+					
+					output[@name] = result
+				end
+				
+				def freeze
+					@name.freeze
+					@definition&.freeze
+					super
+				end
+				
 			end
 			
 			class Nested
@@ -184,6 +254,21 @@ module Protocol
 				def upload(name, required: false)
 					name = name.to_s
 					return add(Upload.new(name, required:))
+				end
+				
+				def array(name, type = nil, required: false, nullable: false, strict: @strict, &block)
+					name = name.to_s
+					
+					if block
+						if type
+							raise ArgumentError, "An array cannot declare both an element type and nested fields!"
+						end
+						
+						definition = Definition.new(strict:)
+						definition.instance_eval(&block)
+					end
+					
+					return add(ArrayField.new(name, type, definition, required:, nullable:))
 				end
 				
 				def nested(name, required: false, nullable: false, strict: @strict, &block)
@@ -263,7 +348,7 @@ module Protocol
 				end
 			end
 			
-			private_constant :OMITTED, :UploadedValue, :Values, :Type, :Field, :Upload, :Nested, :Definition
+			private_constant :OMITTED, :UploadedValue, :Values, :Type, :Field, :Upload, :ArrayField, :Nested, :Definition
 		end
 	end
 end

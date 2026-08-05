@@ -11,7 +11,7 @@ module Protocol
 			# A validation error associated with a specific argument path.
 			class Error
 				# Initialize the validation error.
-				# @parameter path [Array(String)] The path to the invalid argument.
+				# @parameter path [Array(String | Integer)] The path to the invalid argument.
 				# @parameter code [Symbol] The machine-readable error code.
 				# @parameter details [Hash] Additional error details.
 				def initialize(path, code, **details)

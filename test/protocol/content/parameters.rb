@@ -159,6 +159,84 @@ describe Protocol::Content::Parameters do
 		end.to raise_exception(ArgumentError, message: be =~ /already declared/)
 	end
 	
+	it "accepts and converts array values" do
+		parameters = subject.build do
+			array "tags", String
+			array "metadata"
+		end
+		
+		result = parse_json(parameters, '{"tags":["one",2],"metadata":[{"enabled":true},[1,2]]}')
+		
+		expect(result.arguments).to be == {
+			"tags" => ["one", "2"],
+			"metadata" => [{"enabled" => true}, [1, 2]],
+		}
+	end
+	
+	it "validates nested array values" do
+		parameters = subject.build(strict: true) do
+			array "users", required: true do
+				field "name", String, required: true
+				field "age", Integer
+			end
+		end
+		
+		result = parse_json(parameters, '{"users":[{"name":"Samuel","age":"42"},{"age":"old","admin":true},null]}')
+		
+		expect(result.arguments).to be == {
+			"users" => [{"name" => "Samuel", "age" => 42}, {}, {}],
+		}
+		expect(result.errors.map(&:path)).to be == [
+			["users", 1, "name"],
+			["users", 1, "age"],
+			["users", 1, "admin"],
+			["users", 2],
+		]
+	end
+	
+	it "validates array shape, nullability, and element conversion" do
+		parameters = subject.build do
+			array "required", required: true
+			array "nullable", nullable: true
+			array "nonnullable"
+			array "invalid"
+			array "numbers", Integer
+		end
+		
+		result = parse_json(parameters, '{"nullable":null,"nonnullable":null,"invalid":{},"numbers":["1","bad",null]}')
+		
+		expect(result.arguments).to be == {"nullable" => nil, "numbers" => [1]}
+		expect(result.errors.map(&:path)).to be == [["required"], ["nonnullable"], ["invalid"], ["numbers", 1], ["numbers", 2]]
+	end
+	
+	it "parses URL-encoded arrays" do
+		parameters = subject.build do
+			array "tags", String
+			array "users" do
+				field "name", String
+				field "age", Integer
+			end
+		end
+		input = StringIO.new("tags[]=one&tags[]=two&users[][name]=Alice&users[][age]=30&users[][name]=Bob")
+		
+		result = parameters.parse("application/x-www-form-urlencoded", input)
+		
+		expect(result.arguments).to be == {
+			"tags" => ["one", "two"],
+			"users" => [{"name" => "Alice", "age" => 30}, {"name" => "Bob"}],
+		}
+	end
+	
+	it "rejects an array element type with nested fields" do
+		expect do
+			subject.build do
+				array "values", String do
+					field "name", String
+				end
+			end
+		end.to raise_exception(ArgumentError, message: be =~ /element type and nested fields/)
+	end
+	
 	it "raises an aggregate validation error" do
 		parameters = subject.build do
 			field "name", String, required: true

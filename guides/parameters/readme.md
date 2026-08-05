@@ -30,6 +30,30 @@ end
 
 Unknown fields can instead produce validation errors by building the parameters with `strict: true`. Strictness is inherited by constrained nested declarations unless explicitly disabled.
 
+## Declare Arrays
+
+An array declaration without a block accepts and optionally converts each value:
+
+``` ruby
+parameters = Protocol::Content::Parameters.build do
+	array "tags", String
+	array "metadata"
+end
+```
+
+Use a block to declare the fields accepted by each array element:
+
+``` ruby
+parameters = Protocol::Content::Parameters.build do
+	array "users" do
+		field "name", String, required: true
+		field "age", Integer
+	end
+end
+```
+
+Validation errors for array elements include the element index in their path.
+
 ## Parse Parameters
 
 {ruby Protocol::Content::Parameters#parse} selects a content parser according to the media type, then filters, converts, and validates the parsed value:

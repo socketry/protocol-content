@@ -51,6 +51,18 @@ module Protocol
 				return @definition.upload(name, required:)
 			end
 			
+			# Declare an array of scalar values or nested argument hierarchies.
+			# @parameter name [String] The array field name.
+			# @parameter type [Module | #call | Nil] The expected element type or converter.
+			# @parameter required [Boolean] Whether the array must be present.
+			# @parameter nullable [Boolean] Whether the array may be nil.
+			# @parameter strict [Boolean] Whether unknown nested fields should produce validation errors.
+			# @yields The nested parameter declarations for each array element.
+			# @returns [Object] The array declaration.
+			def array(name, type = nil, required: false, nullable: false, strict: @definition.strict, &block)
+				return @definition.array(name, type, required:, nullable:, strict:, &block)
+			end
+			
 			# Declare a nested argument hierarchy. Without a block, all nested values are accepted.
 			# @parameter name [String] The nested field name.
 			# @parameter required [Boolean] Whether the field must be present.
