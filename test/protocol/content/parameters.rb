@@ -379,6 +379,53 @@ describe Protocol::Content::Parameters do
 		}
 	end
 	
+	it "collects handled upload arrays" do
+		parameters = subject.build do
+			uploads "pictures"
+		end
+		body = multipart_body(
+			[{
+				"Content-Disposition" => 'form-data; name="pictures[]"; filename="one.txt"',
+				"Content-Type" => "text/plain"
+			}, "one"],
+			[{
+				"Content-Disposition" => 'form-data; name="pictures[]"; filename="two.txt"',
+				"Content-Type" => "text/plain"
+			}, "two"]
+		)
+		media_type = "multipart/form-data; boundary=#{BOUNDARY}"
+		
+		result = parameters.parse(media_type, StringIO.new(body)) do |_name, upload|
+			{filename: upload.filename, content: upload.each.to_a.join}
+		end
+		
+		expect(result.arguments).to be == {
+			"pictures" => [
+				{filename: "one.txt", content: "one"},
+				{filename: "two.txt", content: "two"},
+			],
+		}
+	end
+	
+	it "supports nested upload arrays" do
+		parameters = subject.build do
+			nested "gallery" do
+				uploads "pictures"
+			end
+		end
+		body = multipart_body([{
+			"Content-Disposition" => 'form-data; name="gallery[pictures][]"; filename="picture.txt"',
+			"Content-Type" => "text/plain"
+		}, "picture"])
+		media_type = "multipart/form-data; boundary=#{BOUNDARY}"
+		
+		result = parameters.parse(media_type, StringIO.new(body)) do |_name, upload|
+			upload.each.to_a.join
+		end
+		
+		expect(result.arguments).to be == {"gallery" => {"pictures" => ["picture"]}}
+	end
+	
 	it "preserves nil returned by the upload handler" do
 		parameters = subject.build do
 			upload "avatar"
@@ -476,6 +523,37 @@ describe Protocol::Content::Parameters do
 		
 		expect(result.arguments).to be == {}
 		expect(result.errors.map(&:code)).to be == [:required]
+	end
+	
+	it "requires at least one handled upload in a collection" do
+		parameters = subject.build do
+			uploads "pictures", required: true
+		end
+		body = multipart_body([{
+			"Content-Disposition" => 'form-data; name="pictures[]"; filename="picture.txt"',
+			"Content-Type" => "text/plain"
+		}, "picture"])
+		media_type = "multipart/form-data; boundary=#{BOUNDARY}"
+		
+		result = parameters.parse(media_type, StringIO.new(body))
+		
+		expect(result.arguments).to be == {"pictures" => []}
+		expect(result.errors.map(&:code)).to be == [:required]
+	end
+	
+	it "rejects regular values in upload collections" do
+		parameters = subject.build do
+			uploads "pictures", required: true
+		end
+		
+		missing = parse_json(parameters, "{}")
+		invalid_shape = parse_json(parameters, '{"pictures":"picture"}')
+		invalid_item = parse_json(parameters, '{"pictures":["picture"]}')
+		
+		expect(missing.errors.map(&:code)).to be == [:required]
+		expect(invalid_shape.errors.map(&:path)).to be == [["pictures"]]
+		expect(invalid_item.arguments).to be == {"pictures" => []}
+		expect(invalid_item.errors.map(&:path)).to be == [["pictures", 0], ["pictures"]]
 	end
 	
 	it "rejects uploads targeting non-upload declarations" do

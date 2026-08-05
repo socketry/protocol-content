@@ -104,6 +104,8 @@ parameters = Protocol::Content::Parameters.build do
 	nested "user" do
 		upload "avatar", required: true
 	end
+	
+	uploads "pictures"
 end
 ```
 
@@ -121,6 +123,6 @@ result = parameters.parse(media_type, input) do |name, upload|
 end
 ```
 
-For an upload named `user[avatar]`, the stored object is available as `result.arguments["user"]["avatar"]`. Without an upload handler, uploads are consumed and omitted from the resulting arguments.
+For an upload named `user[avatar]`, the stored object is available as `result.arguments["user"]["avatar"]`. An `uploads "pictures"` declaration accepts `pictures[]` and collects each handler result in `result.arguments["pictures"]`. Without an upload handler, uploads are consumed and omitted from the resulting arguments.
 
 Upload handlers run while content is being parsed, before validation of the complete argument hierarchy finishes. Applications should therefore use provisional storage or remove stored uploads when the resulting parameters are invalid.

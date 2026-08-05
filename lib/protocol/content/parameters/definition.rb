@@ -131,6 +131,58 @@ module Protocol
 				end
 			end
 			
+			class Uploads
+				def initialize(name, required:)
+					@name = name
+					@required = required
+				end
+				
+				attr :name
+				
+				def required?
+					return @required
+				end
+				
+				def accepts_upload?(path)
+					# Upload collections require anonymous array notation:
+					return path == [""]
+				end
+				
+				def apply(value, output, errors, path)
+					# Upload collections must be represented as arrays by the content parser:
+					unless value.is_a?(Array)
+						errors << Error.new(path, :invalid_type, expected: Array, value: Values.materialize(value))
+						return
+					end
+					
+					result = []
+					
+					value.each_with_index do |item, index|
+						case item
+						when UploadedValue
+							result << item.value
+						when OMITTED
+							# Unhandled uploads are consumed by the parser and omitted here:
+							next
+						else
+							errors << Error.new(path + [index], :invalid_type, expected: :upload, value: Values.materialize(item))
+						end
+					end
+					
+					# Required collections need at least one successfully handled upload:
+					if @required && result.empty?
+						errors << Error.new(path, :required)
+					end
+					
+					output[@name] = result
+				end
+				
+				def freeze
+					@name.freeze
+					super
+				end
+			end
+			
 			class ArrayField
 				def initialize(name, type, definition, required:, nullable:)
 					@name = name
@@ -304,6 +356,11 @@ module Protocol
 					return add(Upload.new(name, required:))
 				end
 				
+				def uploads(name, required: false)
+					name = name.to_s
+					return add(Uploads.new(name, required:))
+				end
+				
 				def array(name, type = nil, required: false, nullable: false, strict: @strict, &block)
 					name = name.to_s
 					
@@ -414,7 +471,7 @@ module Protocol
 				end
 			end
 			
-			private_constant :OMITTED, :UploadedValue, :Values, :Type, :Field, :Upload, :ArrayField, :Nested, :Definition
+			private_constant :OMITTED, :UploadedValue, :Values, :Type, :Field, :Upload, :Uploads, :ArrayField, :Nested, :Definition
 		end
 	end
 end

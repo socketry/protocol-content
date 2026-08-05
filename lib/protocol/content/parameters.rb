@@ -51,6 +51,14 @@ module Protocol
 				return @definition.upload(name, required:)
 			end
 			
+			# Declare a collection of streaming file uploads.
+			# @parameter name [String] The upload collection field name.
+			# @parameter required [Boolean] Whether at least one handled upload must be present.
+			# @returns [Object] The upload collection declaration.
+			def uploads(name, required: false)
+				return @definition.uploads(name, required:)
+			end
+			
 			# Declare an array of scalar values or nested argument hierarchies.
 			# @parameter name [String] The array field name.
 			# @parameter type [Module | #call | Nil] The expected element type or converter.
