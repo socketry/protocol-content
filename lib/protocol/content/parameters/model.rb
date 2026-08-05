@@ -15,7 +15,7 @@ module Protocol
 				# @parameter parser [Parser] The content parser.
 				# @parameter declarations [Hash] The parameter declarations.
 				# @parameter strict [Boolean] Whether unknown fields should produce validation errors.
-				def initialize(parser, declarations, strict: false)
+				def initialize(parser, declarations, strict: true)
 					@parser = parser
 					@declarations = declarations
 					@strict = strict
@@ -100,16 +100,8 @@ module Protocol
 					end
 					
 					# Reject remaining undeclared values when strict validation is enabled:
-					input.each do |name, item|
-						if item.equal?(OMITTED)
-							if @strict
-								errors << Error.new(path + [name], :unknown)
-							end
-							
-							next
-						end
-						
-						if @strict
+					if @strict
+						input.each_key do |name|
 							errors << Error.new(path + [name], :unknown)
 						end
 					end

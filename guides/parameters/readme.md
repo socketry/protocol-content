@@ -4,7 +4,7 @@ This guide explains how to build a parameter model that interprets parsed conten
 
 ## Declare Parameters
 
-Parameter declarations define the input accepted by an operation without reproducing its database or domain model. Fields are optional by default, undeclared fields are omitted, and converted values are returned using string keys:
+Parameter declarations define the input accepted by an operation without reproducing its database or domain model. Fields are optional by default, undeclared fields produce validation errors, and converted values are returned using string keys:
 
 ``` ruby
 require "protocol/content"
@@ -28,7 +28,7 @@ parameters = Protocol::Content::Parameters.build do
 end
 ```
 
-Unknown fields can instead produce validation errors by building the parameters with `strict: true`. Strictness is inherited by constrained nested declarations unless explicitly disabled.
+Strictness is inherited by constrained nested declarations unless explicitly disabled. Build the parameters with `strict: false` when undeclared fields should instead be omitted.
 
 ## Declare Arrays
 

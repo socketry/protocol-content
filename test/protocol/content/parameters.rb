@@ -33,7 +33,7 @@ describe Protocol::Content::Parameters do
 	end
 	
 	it "filters unknown fields and converts declared fields" do
-		parameters = subject.build do
+		parameters = subject.build(strict: false) do
 			field "name", String
 			field "age", Integer
 		end
@@ -45,7 +45,7 @@ describe Protocol::Content::Parameters do
 	end
 	
 	it "collects required, conversion, and unknown field errors" do
-		parameters = subject.build(strict: true) do
+		parameters = subject.build do
 			field "name", String, required: true
 			field "age", Integer
 		end
@@ -94,7 +94,7 @@ describe Protocol::Content::Parameters do
 	end
 	
 	it "filters constrained nested parameters" do
-		parameters = subject.build do
+		parameters = subject.build(strict: false) do
 			nested "user", required: true do
 				field "name", String
 				field "age", Integer
@@ -111,7 +111,7 @@ describe Protocol::Content::Parameters do
 	end
 	
 	it "inherits strict validation in nested declarations" do
-		parameters = subject.build(strict: true) do
+		parameters = subject.build do
 			nested "user" do
 				field "name", String
 			end

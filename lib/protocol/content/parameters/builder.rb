@@ -12,7 +12,7 @@ module Protocol
 				# @parameter parser [Parser] The content parser.
 				# @parameter types [Hash] The available type conversions.
 				# @parameter strict [Boolean] Whether unknown fields should produce validation errors.
-				def initialize(parser: Parser.default, types: TYPES, strict: false)
+				def initialize(parser: Parser.default, types: TYPES, strict: true)
 					@parser = parser
 					@types = types
 					@strict = strict

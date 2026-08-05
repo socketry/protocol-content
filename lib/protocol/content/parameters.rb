@@ -34,7 +34,7 @@ module Protocol
 			# @parameter strict [Boolean] Whether unknown fields should produce validation errors.
 			# @yields The parameter declarations.
 			# @returns [Model] The frozen parameter model.
-			def self.build(parser: Parser.default, types: TYPES, strict: false, &block)
+			def self.build(parser: Parser.default, types: TYPES, strict: true, &block)
 				return Builder.new(parser:, types:, strict:).build(&block)
 			end
 		end
