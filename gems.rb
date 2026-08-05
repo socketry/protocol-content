@@ -21,6 +21,7 @@ group :test do
 	gem "sus"
 	
 	gem "bake-test"
+	gem "bake-test-external"
 end
 
 gem "rubocop", "~> 1.88", group: :test
