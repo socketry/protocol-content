@@ -36,9 +36,11 @@ module Protocol
 				if @size_limit
 					buffer = String.new.b
 					
+					# Read up to the size limit, allowing for partial reads.
 					while buffer.bytesize < @size_limit
 						chunk = input.read(@size_limit - buffer.bytesize)
 						break unless chunk
+						# An empty chunk cannot make progress, so stop reading.
 						break if chunk.empty?
 						
 						buffer << chunk
