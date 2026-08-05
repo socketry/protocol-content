@@ -50,17 +50,32 @@ module Protocol
 			end
 			
 			class Field
-				def initialize(name, type, required:, nullable:)
+				def initialize(name, required:)
 					@name = name
-					@type = type
 					@required = required
-					@nullable = nullable
 				end
 				
 				attr :name
 				
 				def required?
 					return @required
+				end
+				
+				def accepts_upload?(path)
+					return false
+				end
+				
+				def freeze
+					@name.freeze
+					super
+				end
+			end
+			
+			class ValueField < Field
+				def initialize(name, type, required:, nullable:)
+					super(name, required:)
+					@type = type
+					@nullable = nullable
 				end
 				
 				def apply(value, output, errors, path)
@@ -83,30 +98,28 @@ module Protocol
 					errors << Error.new(path, :invalid_type, expected: Values.expected_type(@type), value: value)
 				end
 				
-				def freeze
-					@name.freeze
-					super
-				end
-				
 			end
 			
-			class Upload
-				def initialize(name, required:)
-					@name = name
-					@required = required
-				end
-				
-				attr :name
-				
-				def required?
-					return @required
+			class UploadField < Field
+				def initialize(name, required:, multiple:)
+					super(name, required:)
+					@multiple = multiple
 				end
 				
 				def accepts_upload?(path)
-					return path.empty?
+					if @multiple
+						# Upload collections require anonymous array notation:
+						return path == [""]
+					else
+						return path.empty?
+					end
 				end
 				
 				def apply(value, output, errors, path)
+					if @multiple
+						return apply_multiple(value, output, errors, path)
+					end
+					
 					# Only values produced by an accepted upload handler are valid:
 					if value.is_a?(UploadedValue)
 						output[@name] = value.value
@@ -115,30 +128,9 @@ module Protocol
 					end
 				end
 				
-				def freeze
-					@name.freeze
-					super
-				end
-			end
-			
-			class Uploads
-				def initialize(name, required:)
-					@name = name
-					@required = required
-				end
+				private
 				
-				attr :name
-				
-				def required?
-					return @required
-				end
-				
-				def accepts_upload?(path)
-					# Upload collections require anonymous array notation:
-					return path == [""]
-				end
-				
-				def apply(value, output, errors, path)
+				def apply_multiple(value, output, errors, path)
 					# Upload collections must be represented as arrays by the content parser:
 					unless value.is_a?(Array)
 						errors << Error.new(path, :invalid_type, expected: Array, value: Values.materialize(value))
@@ -167,25 +159,14 @@ module Protocol
 					output[@name] = result
 				end
 				
-				def freeze
-					@name.freeze
-					super
-				end
 			end
 			
-			class ArrayField
+			class ArrayField < Field
 				def initialize(name, type, model, required:, nullable:)
-					@name = name
+					super(name, required:)
 					@type = type
 					@model = model
-					@required = required
 					@nullable = nullable
-				end
-				
-				attr :name
-				
-				def required?
-					return @required
 				end
 				
 				def accepts_upload?(path)
@@ -225,7 +206,7 @@ module Protocol
 					value.each_with_index do |item, index|
 						item_path = path + [index]
 						
-						# Ignore uploads which were not accepted by the declaration:
+						# Ignore uploads which were not accepted by the field:
 						if item.equal?(OMITTED)
 							next
 						end
@@ -256,8 +237,6 @@ module Protocol
 				end
 				
 				def freeze
-					@name.freeze
-					
 					if @model
 						@model.freeze
 					end
@@ -267,18 +246,11 @@ module Protocol
 				
 			end
 			
-			class Nested
+			class NestedField < Field
 				def initialize(name, model, required:, nullable:)
-					@name = name
+					super(name, required:)
 					@model = model
-					@required = required
 					@nullable = nullable
-				end
-				
-				attr :name
-				
-				def required?
-					return @required
 				end
 				
 				def accepts_upload?(path)
@@ -290,7 +262,7 @@ module Protocol
 				end
 				
 				def apply(value, output, errors, path)
-					# Nested declarations require a key/value hierarchy:
+					# Nested fields require a key/value hierarchy:
 					if value.nil?
 						if @nullable
 							output[@name] = nil
@@ -314,8 +286,6 @@ module Protocol
 				end
 				
 				def freeze
-					@name.freeze
-					
 					if @model
 						@model.freeze
 					end
@@ -324,7 +294,7 @@ module Protocol
 				end
 			end
 			
-			private_constant :OMITTED, :UploadedValue, :Values, :Field, :Upload, :Uploads, :ArrayField, :Nested
+			private_constant :OMITTED, :UploadedValue, :Values, :Field, :ValueField, :UploadField, :ArrayField, :NestedField
 		end
 	end
 end

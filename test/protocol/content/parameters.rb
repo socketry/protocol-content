@@ -30,6 +30,8 @@ describe Protocol::Content::Parameters do
 		
 		expect(parameters).to be_a(subject::Model)
 		expect(parameters).to be(:frozen?)
+		expect(parameters.fields.keys).to be == ["name"]
+		expect(parameters.fields).to be(:frozen?)
 	end
 	
 	it "filters unknown fields and converts declared fields" do

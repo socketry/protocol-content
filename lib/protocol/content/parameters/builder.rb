@@ -6,7 +6,7 @@
 module Protocol
 	module Content
 		module Parameters
-			# Builds immutable parameter models using a declaration DSL.
+			# Builds immutable parameter models using a field DSL.
 			class Builder
 				# Initialize a parameter model builder.
 				# @parameter parser [Parser] The content parser.
@@ -16,15 +16,15 @@ module Protocol
 					@parser = parser
 					@types = types
 					@strict = strict
-					@declarations = {}
+					@fields = {}
 				end
 				
-				# Evaluate declarations and construct an immutable parameter model.
-				# @yields The parameter declarations.
+				# Evaluate fields and construct an immutable parameter model.
+				# @yields The parameter fields.
 				# @returns [Model] The frozen parameter model.
 				def build(&block)
 					instance_eval(&block)
-					return Model.new(@parser, @declarations, strict: @strict).freeze
+					return Model.new(@parser, @fields, strict: @strict).freeze
 				end
 				
 				# Declare a scalar field.
@@ -32,28 +32,28 @@ module Protocol
 				# @parameter type [Module | #call] The expected value type or converter.
 				# @parameter required [Boolean] Whether the field must be present.
 				# @parameter nullable [Boolean] Whether the field may be nil.
-				# @returns [Object] The field declaration.
+				# @returns [Field] The field.
 				def field(name, type = Object, required: false, nullable: false)
 					name = name.to_s
-					return add(Field.new(name, resolve(type), required:, nullable:))
+					return add(ValueField.new(name, resolve(type), required:, nullable:))
 				end
 				
 				# Declare a streaming file upload.
 				# @parameter name [String] The upload field name.
 				# @parameter required [Boolean] Whether the upload must be present.
-				# @returns [Object] The upload declaration.
+				# @returns [Field] The upload field.
 				def upload(name, required: false)
 					name = name.to_s
-					return add(Upload.new(name, required:))
+					return add(UploadField.new(name, required:, multiple: false))
 				end
 				
 				# Declare a collection of streaming file uploads.
 				# @parameter name [String] The upload collection field name.
 				# @parameter required [Boolean] Whether at least one handled upload must be present.
-				# @returns [Object] The upload collection declaration.
+				# @returns [Field] The upload collection field.
 				def uploads(name, required: false)
 					name = name.to_s
-					return add(Uploads.new(name, required:))
+					return add(UploadField.new(name, required:, multiple: true))
 				end
 				
 				# Declare an array of scalar values or nested argument hierarchies.
@@ -62,8 +62,8 @@ module Protocol
 				# @parameter required [Boolean] Whether the array must be present.
 				# @parameter nullable [Boolean] Whether the array may be nil.
 				# @parameter strict [Boolean] Whether unknown nested fields should produce validation errors.
-				# @yields The nested parameter declarations for each array element.
-				# @returns [Object] The array declaration.
+				# @yields The nested parameter fields for each array element.
+				# @returns [Field] The array field.
 				def array(name, type = nil, required: false, nullable: false, strict: @strict, &block)
 					name = name.to_s
 					
@@ -86,8 +86,8 @@ module Protocol
 				# @parameter required [Boolean] Whether the field must be present.
 				# @parameter nullable [Boolean] Whether the field may be nil.
 				# @parameter strict [Boolean] Whether unknown nested fields should produce validation errors.
-				# @yields The nested parameter declarations.
-				# @returns [Object] The nested declaration.
+				# @yields The nested parameter fields.
+				# @returns [Field] The nested field.
 				def nested(name, required: false, nullable: false, strict: @strict, &block)
 					name = name.to_s
 					
@@ -95,7 +95,7 @@ module Protocol
 						model = nested_model(strict:, &block)
 					end
 					
-					return add(Nested.new(name, model, required:, nullable:))
+					return add(NestedField.new(name, model, required:, nullable:))
 				end
 				
 				private
@@ -117,14 +117,14 @@ module Protocol
 					return self.class.new(parser: @parser, types: @types, strict:).build(&block)
 				end
 				
-				def add(declaration)
-					# Reject ambiguous declarations for the same input name:
-					if @declarations.key?(declaration.name)
-						raise ArgumentError, "Parameter #{declaration.name.inspect} is already declared!"
+				def add(field)
+					# Reject ambiguous fields for the same input name:
+					if @fields.key?(field.name)
+						raise ArgumentError, "Parameter #{field.name.inspect} is already declared!"
 					end
 					
-					@declarations[declaration.name] = declaration
-					return declaration
+					@fields[field.name] = field
+					return field
 				end
 			end
 		end

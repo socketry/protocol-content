@@ -13,13 +13,16 @@ module Protocol
 			class Model
 				# Initialize a parameter model.
 				# @parameter parser [Parser] The content parser.
-				# @parameter declarations [Hash] The parameter declarations.
+				# @parameter fields [Hash] The parameter fields.
 				# @parameter strict [Boolean] Whether unknown fields should produce validation errors.
-				def initialize(parser, declarations, strict: true)
+				def initialize(parser, fields, strict: true)
 					@parser = parser
-					@declarations = declarations
+					@fields = fields
 					@strict = strict
 				end
+				
+				# The fields in this model, indexed by name.
+				attr :fields
 				
 				# Parse, filter, and validate content parameters.
 				# @parameter media_type [String | Protocol::Media::Type | Nil] The content media type.
@@ -31,7 +34,7 @@ module Protocol
 						if item.is_a?(Protocol::Multipart::FormData::Upload)
 							path = Protocol::URL::Encoding.split(name)
 							
-							# Only process uploads accepted by an explicit declaration:
+							# Only process uploads accepted by an explicit field:
 							if upload_handler && accepts_upload?(path)
 								UploadedValue.new(upload_handler.call(name, item))
 							else
@@ -69,32 +72,32 @@ module Protocol
 				# @parameter path [Array(String | Integer)] The current argument path.
 				# @returns [Hash] The filtered and converted value.
 				def apply(value, errors, path = [])
-					# Parameter declarations always apply to a key/value hierarchy:
+					# Parameter models always apply to a key/value hierarchy:
 					unless value.is_a?(Hash)
 						errors << Error.new(path, :invalid_type, expected: Hash, value: value)
 						return {}
 					end
 					
-					# Normalize keys before matching them against declarations:
+					# Normalize keys before matching them against fields:
 					input = {}
 					value.each{|key, item| input[key.to_s] = item}
 					output = {}
 					
 					# Apply declared values and collect missing required parameters:
-					@declarations.each do |name, declaration|
+					@fields.each do |name, field|
 						item_path = path + [name]
 						
 						if input.key?(name)
 							item = input.delete(name)
 							
 							if item.equal?(OMITTED)
-								if declaration.required?
+								if field.required?
 									errors << Error.new(item_path, :required)
 								end
 							else
-								declaration.apply(item, output, errors, item_path)
+								field.apply(item, output, errors, item_path)
 							end
-						elsif declaration.required?
+						elsif field.required?
 							errors << Error.new(item_path, :required)
 						end
 					end
@@ -113,26 +116,22 @@ module Protocol
 				# @parameter path [Array(String)] The decoded upload path.
 				# @returns [Boolean] Whether the upload is accepted.
 				def accepts_upload?(path)
-					# Walk declarations using the decoded components of the form name:
+					# Walk fields using the decoded components of the form name:
 					name, *remaining = path
 					
-					unless declaration = @declarations[name]
+					unless field = @fields[name]
 						return false
 					end
 					
-					unless declaration.respond_to?(:accepts_upload?)
-						return false
-					end
-					
-					return declaration.accepts_upload?(remaining)
+					return field.accepts_upload?(remaining)
 				end
 				
-				# Freeze this model and its declarations.
+				# Freeze this model and its fields.
 				# @returns [self] The frozen model.
 				def freeze
 					@parser.freeze
-					@declarations.each_value(&:freeze)
-					@declarations.freeze
+					@fields.each_value(&:freeze)
+					@fields.freeze
 					super
 				end
 			end

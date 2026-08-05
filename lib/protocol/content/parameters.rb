@@ -7,7 +7,7 @@ require_relative "default"
 require_relative "parameters/type"
 require_relative "parameters/error"
 require_relative "parameters/result"
-require_relative "parameters/declarations"
+require_relative "parameters/fields"
 require_relative "parameters/model"
 require_relative "parameters/builder"
 
@@ -32,7 +32,7 @@ module Protocol
 			# @parameter parser [Parser] The content parser.
 			# @parameter types [Hash] The available type conversions.
 			# @parameter strict [Boolean] Whether unknown fields should produce validation errors.
-			# @yields The parameter declarations.
+			# @yields The parameter fields.
 			# @returns [Model] The frozen parameter model.
 			def self.build(parser: Parser.default, types: TYPES, strict: true, &block)
 				return Builder.new(parser:, types:, strict:).build(&block)
