@@ -33,18 +33,32 @@ module Protocol
 			# The result of parsing and validating content parameters.
 			class Result
 				# Initialize the result.
-				# @parameter arguments [Hash] The converted and filtered arguments.
+				# @parameter value [Hash] The converted and filtered value.
 				# @parameter errors [Array(Error)] The validation errors.
-				def initialize(arguments, errors)
-					@arguments = arguments
+				def initialize(value, errors)
+					@value = value
 					@errors = errors.freeze
 				end
 				
-				# The converted and filtered arguments.
-				attr :arguments
+				# The converted and filtered value.
+				attr :value
 				
 				# The validation errors.
 				attr :errors
+				
+				# Fetch an entry from the result value.
+				# @parameter key [Object] The value key.
+				# @returns [Object | Nil] The corresponding value.
+				def [](key)
+					return @value[key]
+				end
+				
+				# Fetch an entry nested within the result value.
+				# @parameter path [Array(Object)] The nested value path.
+				# @returns [Object | Nil] The corresponding value.
+				def dig(*path)
+					return @value.dig(*path)
+				end
 				
 				# Whether the parameters are valid.
 				# @returns [Boolean] True when there are no validation errors.

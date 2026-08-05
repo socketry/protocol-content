@@ -24,50 +24,50 @@ module Protocol
 				# Parse, filter, and validate content parameters.
 				# @parameter media_type [String | Protocol::Media::Type | Nil] The content media type.
 				# @parameter input [Object] The readable content input.
-				# @yields {|name, upload| ...} Each streaming upload. Its return value is inserted into the arguments.
-				# @returns [Result] The parsed arguments and validation errors.
+				# @yields {|name, upload| ...} Each streaming upload. Its return value is inserted into the parsed value.
+				# @returns [Result] The parsed value and validation errors.
 				def parse(media_type, input, &upload_handler)
-					arguments = @parser.parse(media_type, input) do |name, value|
-						if value.is_a?(Protocol::Multipart::FormData::Upload)
+					value = @parser.parse(media_type, input) do |name, item|
+						if item.is_a?(Protocol::Multipart::FormData::Upload)
 							path = Protocol::URL::Encoding.split(name)
 							
 							# Only process uploads accepted by an explicit declaration:
 							if upload_handler && accepts_upload?(path)
-								UploadedValue.new(upload_handler.call(name, value))
+								UploadedValue.new(upload_handler.call(name, item))
 							else
 								OMITTED
 							end
 						else
-							value
+							item
 						end
 					end
 					
 					errors = []
-					arguments = apply(arguments, errors)
-					return Result.new(arguments, errors)
+					value = apply(value, errors)
+					return Result.new(value, errors)
 				end
 				
 				# Parse content parameters, raising when validation fails.
 				# @parameter media_type [String | Protocol::Media::Type | Nil] The content media type.
 				# @parameter input [Object] The readable content input.
-				# @yields {|name, upload| ...} Each streaming upload. Its return value is inserted into the arguments.
-				# @returns [Hash] The valid arguments.
+				# @yields {|name, upload| ...} Each streaming upload. Its return value is inserted into the parsed value.
+				# @returns [Hash] The valid value.
 				# @raises [ValidationError] If validation fails.
 				def parse!(media_type, input, &block)
 					result = parse(media_type, input, &block)
 					
 					if result.valid?
-						return result.arguments
+						return result.value
 					end
 					
 					raise ValidationError, result
 				end
 				
 				# Apply this model to an existing argument hierarchy.
-				# @parameter value [Object] The argument hierarchy.
+				# @parameter value [Object] The parameter hierarchy.
 				# @parameter errors [Array(Error)] The validation error destination.
 				# @parameter path [Array(String | Integer)] The current argument path.
-				# @returns [Hash] The filtered and converted arguments.
+				# @returns [Hash] The filtered and converted value.
 				def apply(value, errors, path = [])
 					# Parameter declarations always apply to a key/value hierarchy:
 					unless value.is_a?(Hash)

@@ -41,7 +41,7 @@ describe Protocol::Content::Parameters do
 		result = parse_json(parameters, '{"name":"Samuel","age":"42","admin":true}')
 		
 		expect(result).to be(:valid?)
-		expect(result.arguments).to be == {"name" => "Samuel", "age" => 42}
+		expect(result.value).to be == {"name" => "Samuel", "age" => 42}
 	end
 	
 	it "collects required, conversion, and unknown field errors" do
@@ -66,7 +66,7 @@ describe Protocol::Content::Parameters do
 		
 		result = parse_json(parameters, '{"required":null,"nullable":null}')
 		
-		expect(result.arguments).to be == {"nullable" => nil}
+		expect(result.value).to be == {"nullable" => nil}
 		expect(result.errors.map(&:path)).to be == [["required"]]
 	end
 	
@@ -78,7 +78,7 @@ describe Protocol::Content::Parameters do
 		
 		result = parse_json(parameters, '{"name":123,"ratio":"1.5"}')
 		
-		expect(result.arguments).to be == {"ratio" => 1.5}
+		expect(result.value).to be == {"ratio" => 1.5}
 		expect(result.errors.map(&:path)).to be == [["name"]]
 	end
 	
@@ -104,9 +104,10 @@ describe Protocol::Content::Parameters do
 		result = parse_json(parameters, '{"user":{"name":"Samuel","age":"42","admin":true}}')
 		
 		expect(result).to be(:valid?)
-		expect(result.arguments).to be == {
+		expect(result.value).to be == {
 			"user" => {"name" => "Samuel", "age" => 42}
 		}
+		expect(result.dig("user", "age")).to be == 42
 	end
 	
 	it "inherits strict validation in nested declarations" do
@@ -129,7 +130,7 @@ describe Protocol::Content::Parameters do
 		
 		result = parse_json(parameters, '{"metadata":{"count":1,"labels":["a","b"]}}')
 		
-		expect(result.arguments).to be == {
+		expect(result.value).to be == {
 			"metadata" => {"count" => 1, "labels" => ["a", "b"]}
 		}
 	end
@@ -144,7 +145,7 @@ describe Protocol::Content::Parameters do
 		
 		result = parse_json(parameters, '{"nullable":null,"nonnullable":null,"invalid":"value"}')
 		
-		expect(result.arguments).to be == {"nullable" => nil}
+		expect(result.value).to be == {"nullable" => nil}
 		expect(result.errors.map(&:path)).to be == [["required"], ["nonnullable"], ["invalid"]]
 		expect(result.errors.map(&:code)).to be == [:required, :invalid_type, :invalid_type]
 	end
@@ -166,7 +167,7 @@ describe Protocol::Content::Parameters do
 		
 		result = parse_json(parameters, '{"tags":["one",2],"metadata":[{"enabled":true},[1,2]]}')
 		
-		expect(result.arguments).to be == {
+		expect(result.value).to be == {
 			"tags" => ["one"],
 			"metadata" => [{"enabled" => true}, [1, 2]],
 		}
@@ -183,7 +184,7 @@ describe Protocol::Content::Parameters do
 		
 		result = parse_json(parameters, '{"users":[{"name":"Samuel","age":"42"},{"age":"old","admin":true},null]}')
 		
-		expect(result.arguments).to be == {
+		expect(result.value).to be == {
 			"users" => [{"name" => "Samuel", "age" => 42}, {}, {}],
 		}
 		expect(result.errors.map(&:path)).to be == [
@@ -205,7 +206,7 @@ describe Protocol::Content::Parameters do
 		
 		result = parse_json(parameters, '{"nullable":null,"nonnullable":null,"invalid":{},"numbers":["1","bad",null]}')
 		
-		expect(result.arguments).to be == {"nullable" => nil, "numbers" => [1]}
+		expect(result.value).to be == {"nullable" => nil, "numbers" => [1]}
 		expect(result.errors.map(&:path)).to be == [["required"], ["nonnullable"], ["invalid"], ["numbers", 1], ["numbers", 2]]
 	end
 	
@@ -221,7 +222,7 @@ describe Protocol::Content::Parameters do
 		
 		result = parameters.parse("application/x-www-form-urlencoded", input)
 		
-		expect(result.arguments).to be == {
+		expect(result.value).to be == {
 			"tags" => ["one", "two"],
 			"users" => [{"name" => "Alice", "age" => 30}, {"name" => "Bob"}],
 		}
@@ -265,7 +266,7 @@ describe Protocol::Content::Parameters do
 		end
 		result = parse_json(parameters, '{"code":"abc"}')
 		
-		expect(result.arguments).to be == {"code" => "ABC"}
+		expect(result.value).to be == {"code" => "ABC"}
 	end
 	
 	it "supports custom type mappings" do
@@ -277,7 +278,7 @@ describe Protocol::Content::Parameters do
 		end
 		result = parse_json(parameters, '{"value":"custom"}')
 		
-		expect(result.arguments["value"]).to be_a(type)
+		expect(result["value"]).to be_a(type)
 	end
 	
 	it "collects custom converter failures" do
@@ -288,7 +289,7 @@ describe Protocol::Content::Parameters do
 		
 		result = parse_json(parameters, '{"code":"abc"}')
 		
-		expect(result.arguments).to be == {}
+		expect(result.value).to be == {}
 		expect(result.errors.map(&:code)).to be == [:invalid_type]
 	end
 	
@@ -299,7 +300,7 @@ describe Protocol::Content::Parameters do
 		
 		result = parse_json(parameters, '{"age":true}')
 		
-		expect(result.arguments).to be == {}
+		expect(result.value).to be == {}
 		expect(result.errors.map(&:code)).to be == [:invalid_type]
 	end
 	
@@ -309,7 +310,7 @@ describe Protocol::Content::Parameters do
 		end
 		result = parse_json(parameters, "[]")
 		
-		expect(result.arguments).to be == {}
+		expect(result.value).to be == {}
 		expect(result.errors.first.path).to be == []
 		expect(result.errors.first.code).to be == :invalid_type
 	end
@@ -322,7 +323,7 @@ describe Protocol::Content::Parameters do
 		result = parameters.parse("application/x-www-form-urlencoded", StringIO.new)
 		
 		expect(result).to be(:valid?)
-		expect(result.arguments).to be == {}
+		expect(result.value).to be == {}
 	end
 	
 	it "inserts handled uploads using their nested form names" do
@@ -350,7 +351,7 @@ describe Protocol::Content::Parameters do
 		end
 		
 		expect(result).to be(:valid?)
-		expect(result.arguments).to be == {
+		expect(result.value).to be == {
 			"user" => {
 				"name" => "Samuel",
 				"avatar" => {name: "avatar.txt", content: "avatar"}
@@ -381,7 +382,7 @@ describe Protocol::Content::Parameters do
 			{name: upload.filename, content: upload.each.to_a.join}
 		end
 		
-		expect(result.arguments).to be == {
+		expect(result.value).to be == {
 			"users" => [{
 				"name" => "Samuel",
 				"avatar" => {name: "avatar.txt", content: "avatar"},
@@ -409,7 +410,7 @@ describe Protocol::Content::Parameters do
 			{filename: upload.filename, content: upload.each.to_a.join}
 		end
 		
-		expect(result.arguments).to be == {
+		expect(result.value).to be == {
 			"pictures" => [
 				{filename: "one.txt", content: "one"},
 				{filename: "two.txt", content: "two"},
@@ -433,7 +434,7 @@ describe Protocol::Content::Parameters do
 			upload.each.to_a.join
 		end
 		
-		expect(result.arguments).to be == {"gallery" => {"pictures" => ["picture"]}}
+		expect(result.value).to be == {"gallery" => {"pictures" => ["picture"]}}
 	end
 	
 	it "preserves nil returned by the upload handler" do
@@ -454,7 +455,7 @@ describe Protocol::Content::Parameters do
 			nil
 		end
 		
-		expect(result.arguments).to be == {"avatar" => nil}
+		expect(result.value).to be == {"avatar" => nil}
 	end
 	
 	it "does not pass undeclared uploads to the handler" do
@@ -476,7 +477,7 @@ describe Protocol::Content::Parameters do
 		end
 		
 		expect(called).to be == false
-		expect(result.arguments).to be == {}
+		expect(result.value).to be == {}
 		expect(result.errors.map(&:path)).to be == [["avatar"]]
 		expect(result.errors.map(&:code)).to be == [:unknown]
 	end
@@ -500,7 +501,7 @@ describe Protocol::Content::Parameters do
 			raise "The handler should not be called!"
 		end
 		
-		expect(result.arguments).to be == {"user" => {}}
+		expect(result.value).to be == {"user" => {}}
 		expect(result.errors.map(&:path)).to be == [["user", "avatar"]]
 	end
 	
@@ -531,7 +532,7 @@ describe Protocol::Content::Parameters do
 		
 		result = parameters.parse(media_type, StringIO.new(body))
 		
-		expect(result.arguments).to be == {}
+		expect(result.value).to be == {}
 		expect(result.errors.map(&:code)).to be == [:required]
 	end
 	
@@ -547,7 +548,7 @@ describe Protocol::Content::Parameters do
 		
 		result = parameters.parse(media_type, StringIO.new(body))
 		
-		expect(result.arguments).to be == {"pictures" => []}
+		expect(result.value).to be == {"pictures" => []}
 		expect(result.errors.map(&:code)).to be == [:required]
 	end
 	
@@ -562,7 +563,7 @@ describe Protocol::Content::Parameters do
 		
 		expect(missing.errors.map(&:code)).to be == [:required]
 		expect(invalid_shape.errors.map(&:path)).to be == [["pictures"]]
-		expect(invalid_item.arguments).to be == {"pictures" => []}
+		expect(invalid_item.value).to be == {"pictures" => []}
 		expect(invalid_item.errors.map(&:path)).to be == [["pictures", 0], ["pictures"]]
 	end
 	
@@ -599,7 +600,7 @@ describe Protocol::Content::Parameters do
 			raise "The handler should not be called!"
 		end
 		
-		expect(result.arguments).to be == {"metadata" => {}, "attachments" => []}
+		expect(result.value).to be == {"metadata" => {}, "attachments" => []}
 		expect(result.errors.map(&:path)).to be == [["users"]]
 	end
 	
@@ -623,6 +624,6 @@ describe Protocol::Content::Parameters do
 		result = parameters.parse(media_type, StringIO.new(body))
 		
 		expect(result).to be(:valid?)
-		expect(result.arguments).to be == {"name" => "Samuel"}
+		expect(result.value).to be == {"name" => "Samuel"}
 	end
 end

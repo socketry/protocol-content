@@ -62,7 +62,7 @@ Validation errors for array elements include the element index in their path.
 result = parameters.parse(media_type, input)
 
 if result.valid?
-	user.update(result.arguments["user"])
+	user.update(result["user"])
 else
 	result.errors.each do |error|
 		warn "#{error.path.join(".")}: #{error.code}"
@@ -135,6 +135,6 @@ result = parameters.parse(media_type, input) do |name, upload|
 end
 ```
 
-For an upload named `user[avatar]`, the stored object is available as `result.arguments["user"]["avatar"]`. An `uploads "pictures"` declaration accepts `pictures[]` and collects each handler result in `result.arguments["pictures"]`. Without an upload handler, uploads are consumed and omitted from the resulting arguments.
+For an upload named `user[avatar]`, the stored object is available as `result.dig("user", "avatar")`. An `uploads "pictures"` declaration accepts `pictures[]` and collects each handler result in `result["pictures"]`. Without an upload handler, uploads are consumed and omitted from the resulting arguments.
 
 Upload handlers run while content is being parsed, before validation of the complete argument hierarchy finishes. Applications should therefore use provisional storage or remove stored uploads when the resulting parameters are invalid.
