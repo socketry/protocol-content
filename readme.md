@@ -12,17 +12,25 @@ Please see the [project documentation](https://socketry.github.io/protocol-conte
 
 ## Releases
 
-Please see the [project releases](https://github.com/socketry/protocol-content/releases) for all releases.
+Please see the [project releases](https://socketry.github.io/protocol-content/releases/index) for all releases.
+
+### v0.1.0
+
+  - Add media-type parser dispatch for readable content.
+  - Add JSON, URL-encoded form, and multipart form parsers with explicit convenient defaults.
+  - Bound JSON input size and nesting depth using consistently named limits.
+  - Add `ContentTooLargeError` for content parser limit violations.
+  - Forward blocks to content handlers for incremental and streaming parsing.
 
 ## Contributing
 
 We welcome contributions to this project.
 
-1. Fork it.
-2. Create your feature branch (`git checkout -b my-new-feature`).
-3. Commit your changes (`git commit -am 'Add some feature.'`).
-4. Push to the branch (`git push origin my-new-feature`).
-5. Create a new pull request.
+1.  Fork it.
+2.  Create your feature branch (`git checkout -b my-new-feature`).
+3.  Commit your changes (`git commit -am 'Add some feature.'`).
+4.  Push to the branch (`git push origin my-new-feature`).
+5.  Create a new pull request.
 
 ### Running Tests
 

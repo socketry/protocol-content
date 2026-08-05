@@ -7,6 +7,6 @@
 module Protocol
 	# Models media-typed content carried by protocol messages.
 	module Content
-		VERSION = "0.0.0"
+		VERSION = "0.1.0"
 	end
 end
