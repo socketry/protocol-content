@@ -63,7 +63,7 @@ value = Protocol::Content::Parser.default.parse(
 )
 ```
 
-The format libraries are included as dependencies, so these defaults are available from a normal installation. See the [Content Parameters](../parameters/index) guide for operation-specific filtering, conversion, validation, and upload handling.
+The format libraries are included as dependencies, so these defaults are available from a normal installation.
 
 ## Configure Limits
 
