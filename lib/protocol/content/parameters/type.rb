@@ -8,6 +8,15 @@ module Protocol
 		module Parameters
 			# Converts input values to a specific application type.
 			class Type
+				# Resolve the expected output type of a converter.
+				def self.expected(type)
+					if type.respond_to?(:type)
+						return type.type
+					else
+						return type
+					end
+				end
+				
 				# Initialize a type converter.
 				# @parameter type [Object] The expected converted type.
 				# @yields {|value| ...} The conversion operation.

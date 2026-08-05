@@ -6,7 +6,7 @@
 module Protocol
 	module Content
 		module Parameters
-			module Values
+			module Value
 				OMITTED = Object.new.freeze
 				
 				class Uploaded
@@ -15,14 +15,6 @@ module Protocol
 					end
 					
 					attr :value
-				end
-				
-				def self.expected_type(type)
-					if type.respond_to?(:type)
-						return type.type
-					else
-						return type
-					end
 				end
 				
 				def self.materialize(value)
@@ -49,7 +41,7 @@ module Protocol
 				end
 			end
 			
-			private_constant :Values
+			private_constant :Value
 		end
 	end
 end

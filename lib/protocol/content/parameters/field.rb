@@ -37,14 +37,14 @@ module Protocol
 				end
 				
 				def apply(value, output, errors, path)
-					value = Values.materialize(value)
+					value = Value.materialize(value)
 					
 					# Reject nil unless the field is explicitly nullable:
 					if value.nil?
 						if @nullable
 							output[@name] = nil
 						else
-							errors << Error.new(path, :invalid_type, expected: Values.expected_type(@type), value: value)
+							errors << Error.new(path, :invalid_type, expected: Type.expected(@type), value: value)
 						end
 						
 						return
@@ -53,7 +53,7 @@ module Protocol
 					# Treat input conversion failures as validation errors:
 					output[@name] = @type.call(value)
 				rescue ArgumentError, TypeError
-					errors << Error.new(path, :invalid_type, expected: Values.expected_type(@type), value: value)
+					errors << Error.new(path, :invalid_type, expected: Type.expected(@type), value: value)
 				end
 				
 			end
@@ -79,10 +79,10 @@ module Protocol
 					end
 					
 					# Only values produced by an accepted upload handler are valid:
-					if value.is_a?(Values::Uploaded)
+					if value.is_a?(Value::Uploaded)
 						output[@name] = value.value
 					else
-						errors << Error.new(path, :invalid_type, expected: :upload, value: Values.materialize(value))
+						errors << Error.new(path, :invalid_type, expected: :upload, value: Value.materialize(value))
 					end
 				end
 				
@@ -91,7 +91,7 @@ module Protocol
 				def apply_multiple(value, output, errors, path)
 					# Upload collections must be represented as arrays by the content parser:
 					unless value.is_a?(Array)
-						errors << Error.new(path, :invalid_type, expected: Array, value: Values.materialize(value))
+						errors << Error.new(path, :invalid_type, expected: Array, value: Value.materialize(value))
 						return
 					end
 					
@@ -99,13 +99,13 @@ module Protocol
 					
 					value.each_with_index do |item, index|
 						case item
-						when Values::Uploaded
+						when Value::Uploaded
 							result << item.value
-						when Values::OMITTED
+						when Value::OMITTED
 							# Unhandled uploads are consumed by the parser and omitted here:
 							next
 						else
-							errors << Error.new(path + [index], :invalid_type, expected: :upload, value: Values.materialize(item))
+							errors << Error.new(path + [index], :invalid_type, expected: :upload, value: Value.materialize(item))
 						end
 					end
 					
@@ -165,7 +165,7 @@ module Protocol
 						item_path = path + [index]
 						
 						# Ignore uploads which were not accepted by the field:
-						if item.equal?(Values::OMITTED)
+						if item.equal?(Value::OMITTED)
 							next
 						end
 						
@@ -175,19 +175,19 @@ module Protocol
 						elsif @type
 							# Typed arrays reject nil rather than passing it to coercion:
 							if item.nil?
-								errors << Error.new(item_path, :invalid_type, expected: Values.expected_type(@type), value: item)
+								errors << Error.new(item_path, :invalid_type, expected: Type.expected(@type), value: item)
 								next
 							end
 							
 							begin
-								item = Values.materialize(item)
+								item = Value.materialize(item)
 								item = @type.call(item)
 								result << item
 							rescue ArgumentError, TypeError
-								errors << Error.new(item_path, :invalid_type, expected: Values.expected_type(@type), value: item)
+								errors << Error.new(item_path, :invalid_type, expected: Type.expected(@type), value: item)
 							end
 						else
-							result << Values.materialize(item)
+							result << Value.materialize(item)
 						end
 					end
 					
@@ -239,7 +239,7 @@ module Protocol
 					if @model
 						output[@name] = @model.apply(value, errors, path)
 					else
-						output[@name] = Values.materialize(value)
+						output[@name] = Value.materialize(value)
 					end
 				end
 				

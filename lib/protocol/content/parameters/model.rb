@@ -36,9 +36,9 @@ module Protocol
 							
 							# Only process uploads accepted by an explicit field:
 							if upload_handler && accepts_upload?(path)
-								Values::Uploaded.new(upload_handler.call(name, item))
+								Value::Uploaded.new(upload_handler.call(name, item))
 							else
-								Values::OMITTED
+								Value::OMITTED
 							end
 						else
 							item
@@ -90,7 +90,7 @@ module Protocol
 						if input.key?(name)
 							item = input.delete(name)
 							
-							if item.equal?(Values::OMITTED)
+							if item.equal?(Value::OMITTED)
 								if field.required?
 									errors << Error.new(item_path, :required)
 								end
