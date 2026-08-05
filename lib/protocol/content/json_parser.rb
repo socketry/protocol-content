@@ -55,7 +55,6 @@ module Protocol
 			rescue JSON::NestingError
 				raise ContentTooLargeError
 			end
-			
 		end
 	end
 end
