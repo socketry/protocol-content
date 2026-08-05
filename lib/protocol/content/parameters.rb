@@ -5,6 +5,7 @@
 
 require_relative "default"
 require_relative "parameters/type"
+require_relative "parameters/error"
 require_relative "parameters/result"
 require_relative "parameters/declarations"
 require_relative "parameters/model"
