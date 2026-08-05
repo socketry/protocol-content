@@ -33,9 +33,9 @@ module Protocol
 			# @parameter input [Object] The readable input.
 			# @returns [Object] The decoded JSON value.
 			def parse(input)
-				buffer = String.new.b
-				
 				if @size_limit
+					buffer = String.new.b
+					
 					while buffer.bytesize < @size_limit
 						chunk = input.read(@size_limit - buffer.bytesize)
 						break unless chunk
