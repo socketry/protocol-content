@@ -137,6 +137,13 @@ module Protocol
 					return @required
 				end
 				
+				def accepts_upload?(path)
+					return false unless @definition
+					index, *remaining = path
+					return false unless index&.empty?
+					return @definition.accepts_upload?(remaining)
+				end
+				
 				def apply(value, output, errors, path)
 					if value.nil?
 						if @nullable

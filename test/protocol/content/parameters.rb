@@ -327,6 +327,37 @@ describe Protocol::Content::Parameters do
 		}
 	end
 	
+	it "inserts handled uploads into array elements" do
+		parameters = subject.build do
+			array "users" do
+				field "name", String
+				upload "avatar"
+			end
+		end
+		body = multipart_body(
+			[{"Content-Disposition" => 'form-data; name="users[][name]"'}, "Samuel"],
+			[
+				{
+					"Content-Disposition" => 'form-data; name="users[][avatar]"; filename="avatar.txt"',
+					"Content-Type" => "text/plain"
+				},
+				"avatar"
+			]
+		)
+		media_type = "multipart/form-data; boundary=#{BOUNDARY}"
+		
+		result = parameters.parse(media_type, StringIO.new(body)) do |_name, upload|
+			{name: upload.filename, content: upload.each.to_a.join}
+		end
+		
+		expect(result.arguments).to be == {
+			"users" => [{
+				"name" => "Samuel",
+				"avatar" => {name: "avatar.txt", content: "avatar"},
+			}],
+		}
+	end
+	
 	it "preserves nil returned by the upload handler" do
 		parameters = subject.build do
 			upload "avatar"
