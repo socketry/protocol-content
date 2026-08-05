@@ -13,6 +13,7 @@ parameters = Protocol::Content::Parameters.build do
 	nested "user", required: true do
 		field "name", String
 		field "age", Integer
+		upload "avatar"
 	end
 end
 ```
@@ -56,16 +57,12 @@ user.update(arguments["user"])
 
 ## Convert Fields
 
-Built-in converters support `String`, `Integer`, and `Float`. A custom converter can be supplied as any object responding to `#convert`:
+Built-in converters support `String`, `Integer`, and `Float`. A custom converter can be supplied as any object responding to `#call`:
 
 ``` ruby
 require "date"
 
-date = Object.new
-
-def date.convert(value)
-	Date.iso8601(value)
-end
+date = ->(value){Date.iso8601(value)}
 
 parameters = Protocol::Content::Parameters.build do
 	field "date", date
@@ -76,7 +73,17 @@ A converter should return the converted value or raise `ArgumentError` or `TypeE
 
 ## Handle Uploads
 
-Uploads do not need field declarations. When an upload handler is provided, its return value is inserted at the upload's nested form name:
+Uploads must be declared explicitly. Undeclared uploads are consumed and omitted without invoking the upload handler:
+
+``` ruby
+parameters = Protocol::Content::Parameters.build do
+	nested "user" do
+		upload "avatar", required: true
+	end
+end
+```
+
+When an upload handler is provided, its return value is inserted at the upload's nested form name:
 
 ``` ruby
 result = parameters.parse(media_type, input) do |name, upload|

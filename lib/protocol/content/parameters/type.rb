@@ -20,9 +20,9 @@ module Protocol
 				
 				# Resolve a declared type to a converter.
 				# @parameter type [Object] The declared type or converter.
-				# @returns [Type | Object] A value responding to `#convert`.
+				# @returns [Type | Object] A value responding to `#call`.
 				def self.for(type)
-					return type if type.respond_to?(:convert)
+					return type if type.respond_to?(:call)
 					return @types.fetch(type){new(type)}
 				end
 				

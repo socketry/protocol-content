@@ -8,6 +8,7 @@ require_relative "parameters/definition"
 require_relative "parameters/result"
 
 require "protocol/multipart/form_data"
+require "protocol/url/encoding"
 
 module Protocol
 	module Content
@@ -34,12 +35,20 @@ module Protocol
 			
 			# Declare a scalar field.
 			# @parameter name [String] The field name.
-			# @parameter type [Module | #convert] The expected value type or converter.
+			# @parameter type [Module | #call] The expected value type or converter.
 			# @parameter required [Boolean] Whether the field must be present.
 			# @parameter nullable [Boolean] Whether the field may be nil.
 			# @returns [Object] The field declaration.
 			def field(name, type = Object, required: false, nullable: false)
 				return @definition.field(name, type, required:, nullable:)
+			end
+			
+			# Declare a streaming file upload.
+			# @parameter name [String] The upload field name.
+			# @parameter required [Boolean] Whether the upload must be present.
+			# @returns [Object] The upload declaration.
+			def upload(name, required: false)
+				return @definition.upload(name, required:)
 			end
 			
 			# Declare a nested argument hierarchy. Without a block, all nested values are accepted.
@@ -61,7 +70,9 @@ module Protocol
 			def parse(media_type, input, &upload_handler)
 				arguments = @parser.parse(media_type, input) do |name, value|
 					if value.is_a?(Protocol::Multipart::FormData::Upload)
-						if upload_handler
+						path = Protocol::URL::Encoding.split(name)
+						
+						if upload_handler && @definition.accepts_upload?(path)
 							UploadedValue.new(upload_handler.call(name, value))
 						else
 							OMITTED

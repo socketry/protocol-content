@@ -21,8 +21,6 @@ module Protocol
 			module Values
 				def self.materialize(value)
 					case value
-					when UploadedValue
-						return value.value
 					when Hash
 						result = {}
 						value.each do |key, item|
@@ -35,39 +33,6 @@ module Protocol
 						end
 					else
 						return value
-					end
-				end
-				
-				def self.extract_uploads(value)
-					case value
-					when UploadedValue
-						return value.value, false
-					when Hash
-						uploads = {}
-						regular = false
-						
-						value.each do |key, item|
-							extracted, item_regular = extract_uploads(item)
-							uploads[key.to_s] = extracted unless extracted.equal?(OMITTED)
-							regular ||= item_regular
-						end
-						
-						return uploads.empty? ? OMITTED : uploads, regular
-					when Array
-						uploads = []
-						regular = false
-						
-						value.each do |item|
-							extracted, item_regular = extract_uploads(item)
-							uploads << extracted unless extracted.equal?(OMITTED)
-							regular ||= item_regular
-						end
-						
-						return uploads.empty? ? OMITTED : uploads, regular
-					when OMITTED
-						return OMITTED, false
-					else
-						return OMITTED, true
 					end
 				end
 			end
@@ -87,11 +52,6 @@ module Protocol
 				end
 				
 				def apply(value, output, errors, path)
-					if value.is_a?(UploadedValue)
-						output[@name] = value.value
-						return
-					end
-					
 					value = Values.materialize(value)
 					
 					if value.nil?
@@ -104,7 +64,11 @@ module Protocol
 						return
 					end
 					
-					output[@name] = @type.convert(value)
+					output[@name] = if @type.respond_to?(:convert)
+						@type.convert(value)
+					else
+						@type.call(value)
+					end
 				rescue ArgumentError, TypeError
 					errors << Error.new(path, :invalid_type, expected: expected_type, value: value)
 				end
@@ -125,6 +89,36 @@ module Protocol
 				end
 			end
 			
+			class Upload
+				def initialize(name, required:)
+					@name = name
+					@required = required
+				end
+				
+				attr :name
+				
+				def required?
+					return @required
+				end
+				
+				def accepts_upload?(path)
+					return path.empty?
+				end
+				
+				def apply(value, output, errors, path)
+					if value.is_a?(UploadedValue)
+						output[@name] = value.value
+					else
+						errors << Error.new(path, :invalid_type, expected: :upload, value: Values.materialize(value))
+					end
+				end
+				
+				def freeze
+					@name.freeze
+					super
+				end
+			end
+			
 			class Nested
 				def initialize(name, definition, required:, nullable:)
 					@name = name
@@ -139,12 +133,12 @@ module Protocol
 					return @required
 				end
 				
+				def accepts_upload?(path)
+					return false unless @definition
+					return @definition.accepts_upload?(path)
+				end
+				
 				def apply(value, output, errors, path)
-					if value.is_a?(UploadedValue)
-						output[@name] = value.value
-						return
-					end
-					
 					if value.nil?
 						if @nullable
 							output[@name] = nil
@@ -187,6 +181,11 @@ module Protocol
 					return add(Field.new(name, type, required:, nullable:))
 				end
 				
+				def upload(name, required: false)
+					name = name.to_s
+					return add(Upload.new(name, required:))
+				end
+				
 				def nested(name, required: false, nullable: false, strict: @strict, &block)
 					name = name.to_s
 					
@@ -211,25 +210,39 @@ module Protocol
 					@declarations.each do |name, declaration|
 						item_path = path + [name]
 						
-						if input.key?(name) && !input[name].equal?(OMITTED)
-							declaration.apply(input.delete(name), output, errors, item_path)
+						if input.key?(name)
+							item = input.delete(name)
+							
+							if item.equal?(OMITTED)
+								errors << Error.new(item_path, :required) if declaration.required?
+							else
+								declaration.apply(item, output, errors, item_path)
+							end
 						elsif declaration.required?
 							errors << Error.new(item_path, :required)
 						end
 					end
 					
 					input.each do |name, item|
-						next if item.equal?(OMITTED)
+						if item.equal?(OMITTED)
+							errors << Error.new(path + [name], :unknown) if @strict
+							next
+						end
 						
-						uploads, regular = Values.extract_uploads(item)
-						output[name] = uploads unless uploads.equal?(OMITTED)
-						
-						if @strict && regular
+						if @strict
 							errors << Error.new(path + [name], :unknown)
 						end
 					end
 					
 					return output
+				end
+				
+				def accepts_upload?(path)
+					name, *remaining = path
+					return false unless name
+					return false unless declaration = @declarations[name]
+					return false unless declaration.respond_to?(:accepts_upload?)
+					return declaration.accepts_upload?(remaining)
 				end
 				
 				def freeze
@@ -250,7 +263,7 @@ module Protocol
 				end
 			end
 			
-			private_constant :OMITTED, :UploadedValue, :Values, :Type, :Field, :Nested, :Definition
+			private_constant :OMITTED, :UploadedValue, :Values, :Type, :Field, :Upload, :Nested, :Definition
 		end
 	end
 end

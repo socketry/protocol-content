@@ -72,6 +72,28 @@ describe Protocol::Content::Parameters do
 		expect(result.errors.map(&:path)).to be == [["required"]]
 	end
 	
+	it "converts string and floating point fields" do
+		parameters = subject.build do
+			field "name", String
+			field "ratio", Float
+		end
+		
+		result = parse_json(parameters, '{"name":123,"ratio":"1.5"}')
+		
+		expect(result.arguments).to be == {"name" => "123", "ratio" => 1.5}
+	end
+	
+	it "rejects values without a type conversion" do
+		type = Class.new
+		parameters = subject.build do
+			field "value", type
+		end
+		
+		result = parse_json(parameters, '{"value":"invalid"}')
+		
+		expect(result.errors.map(&:code)).to be == [:invalid_type]
+	end
+	
 	it "filters constrained nested parameters" do
 		parameters = subject.build do
 			nested "user", required: true do
@@ -113,6 +135,30 @@ describe Protocol::Content::Parameters do
 		}
 	end
 	
+	it "validates required, nullable, and invalid nested parameters" do
+		parameters = subject.build do
+			nested "required", required: true
+			nested "nullable", nullable: true
+			nested "nonnullable"
+			nested "invalid"
+		end
+		
+		result = parse_json(parameters, '{"nullable":null,"nonnullable":null,"invalid":"value"}')
+		
+		expect(result.arguments).to be == {"nullable" => nil}
+		expect(result.errors.map(&:path)).to be == [["required"], ["nonnullable"], ["invalid"]]
+		expect(result.errors.map(&:code)).to be == [:required, :invalid_type, :invalid_type]
+	end
+	
+	it "rejects duplicate declarations" do
+		expect do
+			subject.build do
+				field "name", String
+				upload "name"
+			end
+		end.to raise_exception(ArgumentError, message: be =~ /already declared/)
+	end
+	
 	it "raises an aggregate validation error" do
 		parameters = subject.build do
 			field "name", String, required: true
@@ -126,10 +172,7 @@ describe Protocol::Content::Parameters do
 	end
 	
 	it "supports custom converters" do
-		converter = Object.new
-		def converter.convert(value)
-			return value.upcase
-		end
+		converter = ->(value){value.upcase}
 		
 		parameters = subject.build do
 			field "code", converter
@@ -137,6 +180,18 @@ describe Protocol::Content::Parameters do
 		result = parse_json(parameters, '{"code":"abc"}')
 		
 		expect(result.arguments).to be == {"code" => "ABC"}
+	end
+	
+	it "collects custom converter failures" do
+		converter = ->(_value){raise ArgumentError}
+		parameters = subject.build do
+			field "code", converter
+		end
+		
+		result = parse_json(parameters, '{"code":"abc"}')
+		
+		expect(result.arguments).to be == {}
+		expect(result.errors.map(&:code)).to be == [:invalid_type]
 	end
 	
 	it "reports a non-object content value" do
@@ -165,6 +220,7 @@ describe Protocol::Content::Parameters do
 		parameters = subject.build(strict: true) do
 			nested "user" do
 				field "name", String
+				upload "avatar"
 			end
 		end
 		body = multipart_body(
@@ -194,7 +250,9 @@ describe Protocol::Content::Parameters do
 	end
 	
 	it "preserves nil returned by the upload handler" do
-		parameters = subject.build{}
+		parameters = subject.build do
+			upload "avatar"
+		end
 		body = multipart_body([
 			{
 				"Content-Disposition" => 'form-data; name="avatar"; filename="avatar.txt"',
@@ -212,9 +270,69 @@ describe Protocol::Content::Parameters do
 		expect(result.arguments).to be == {"avatar" => nil}
 	end
 	
-	it "discards and omits unhandled uploads" do
-		parameters = subject.build do
+	it "does not pass undeclared uploads to the handler" do
+		parameters = subject.build(strict: true) do
 			field "name", String
+		end
+		body = multipart_body([
+			{
+				"Content-Disposition" => 'form-data; name="avatar"; filename="avatar.txt"',
+				"Content-Type" => "text/plain"
+			},
+			"avatar"
+		])
+		media_type = "multipart/form-data; boundary=#{BOUNDARY}"
+		called = false
+		
+		result = parameters.parse(media_type, StringIO.new(body)) do
+			called = true
+		end
+		
+		expect(called).to be == false
+		expect(result.arguments).to be == {}
+		expect(result.errors.map(&:path)).to be == [["avatar"]]
+		expect(result.errors.map(&:code)).to be == [:unknown]
+	end
+	
+	it "rejects undeclared nested uploads" do
+		parameters = subject.build(strict: true) do
+			nested "user" do
+				field "name", String
+			end
+		end
+		body = multipart_body([
+			{
+				"Content-Disposition" => 'form-data; name="user[avatar]"; filename="avatar.txt"',
+				"Content-Type" => "text/plain"
+			},
+			"avatar"
+		])
+		media_type = "multipart/form-data; boundary=#{BOUNDARY}"
+		
+		result = parameters.parse(media_type, StringIO.new(body)) do
+			raise "The handler should not be called!"
+		end
+		
+		expect(result.arguments).to be == {"user" => {}}
+		expect(result.errors.map(&:path)).to be == [["user", "avatar"]]
+	end
+	
+	it "validates upload declarations" do
+		parameters = subject.build do
+			upload "avatar", required: true
+		end
+		
+		missing = parse_json(parameters, "{}")
+		invalid = parse_json(parameters, '{"avatar":"not an upload"}')
+		
+		expect(missing.errors.map(&:code)).to be == [:required]
+		expect(invalid.errors.map(&:code)).to be == [:invalid_type]
+	end
+	
+	it "discards and omits declared uploads without a handler" do
+		parameters = subject.build(strict: true) do
+			field "name", String
+			upload "avatar"
 		end
 		body = multipart_body(
 			[{"Content-Disposition" => 'form-data; name="name"'}, "Samuel"],
