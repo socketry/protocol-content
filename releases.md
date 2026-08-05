@@ -1,5 +1,9 @@
 # Releases
 
+## Unreleased
+
+  - Add declarative content parameter filtering, conversion, validation, and upload handling.
+
 ## v0.1.0
 
   - Add media-type parser dispatch for readable content.
