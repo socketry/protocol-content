@@ -7,7 +7,7 @@ require_relative "../error"
 
 module Protocol
 	module Content
-		class Parameters
+		module Parameters
 			# A validation error associated with a specific argument path.
 			class Error
 				# Initialize the validation error.

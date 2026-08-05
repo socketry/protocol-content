@@ -5,31 +5,9 @@
 
 module Protocol
 	module Content
-		class Parameters
+		module Parameters
 			# Converts input values to a specific application type.
 			class Type
-				@types = {}
-				
-				# Register a converter for a type.
-				# @parameter type [Object] The declared type.
-				# @yields {|value| ...} The conversion operation.
-				# @returns [Type] The registered type converter.
-				def self.register(type, &converter)
-					return @types[type] = new(type, &converter)
-				end
-				
-				# Resolve a declared type to a converter.
-				# @parameter type [Object] The declared type or converter.
-				# @returns [Type | Object] A value responding to `#call`.
-				def self.for(type)
-					# Preserve custom converters without wrapping them:
-					if type.respond_to?(:call)
-						return type
-					end
-					
-					return @types.fetch(type){new(type)}
-				end
-				
 				# Initialize a type converter.
 				# @parameter type [Object] The expected converted type.
 				# @yields {|value| ...} The conversion operation.
@@ -64,18 +42,7 @@ module Protocol
 				end
 			end
 			
-			Type.register(Integer) do |value|
-				# Reject non-string values rather than relying on implicit numeric coercion:
-				unless value.is_a?(String)
-					raise TypeError
-				end
-				
-				Integer(value, 10)
-			end
-			
-			Type.register(Float) do |value|
-				Float(value)
-			end
+			private_constant :Type
 		end
 	end
 end

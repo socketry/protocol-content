@@ -23,15 +23,13 @@ describe Protocol::Content::Parameters do
 		return (body.join + "--#{BOUNDARY}--\n").gsub("\n", "\r\n")
 	end
 	
-	it "builds immutable parameter definitions" do
+	it "builds immutable parameter models" do
 		parameters = subject.build do
 			field "name", String
 		end
 		
+		expect(parameters).to be_a(subject::Model)
 		expect(parameters).to be(:frozen?)
-		expect do
-			parameters.field("age", Integer)
-		end.to raise_exception(FrozenError)
 	end
 	
 	it "filters unknown fields and converts declared fields" do
@@ -268,6 +266,18 @@ describe Protocol::Content::Parameters do
 		result = parse_json(parameters, '{"code":"abc"}')
 		
 		expect(result.arguments).to be == {"code" => "ABC"}
+	end
+	
+	it "supports custom type mappings" do
+		type = Class.new
+		types = subject::TYPES.merge(type => ->(_value){type.new})
+		
+		parameters = subject.build(types:) do
+			field "value", type
+		end
+		result = parse_json(parameters, '{"value":"custom"}')
+		
+		expect(result.arguments["value"]).to be_a(type)
 	end
 	
 	it "collects custom converter failures" do

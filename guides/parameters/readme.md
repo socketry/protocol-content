@@ -1,6 +1,6 @@
 # Content Parameters
 
-This guide explains how to interpret parsed content as operation-specific arguments using {ruby Protocol::Content::Parameters}.
+This guide explains how to build a parameter model that interprets parsed content as operation-specific arguments using {ruby Protocol::Content::Parameters}.
 
 ## Declare Parameters
 
@@ -56,7 +56,7 @@ Validation errors for array elements include the element index in their path.
 
 ## Parse Parameters
 
-{ruby Protocol::Content::Parameters#parse} selects a content parser according to the media type, then filters, converts, and validates the parsed value:
+{ruby Protocol::Content::Parameters::Model#parse} selects a content parser according to the media type, then filters, converts, and validates the parsed value:
 
 ``` ruby
 result = parameters.parse(media_type, input)
@@ -72,7 +72,7 @@ end
 
 Validation errors are collected so an application can present all failures together. Each {ruby Protocol::Content::Parameters::Error} exposes a normalized `path`, machine-readable `code`, and additional `details`.
 
-Use {ruby Protocol::Content::Parameters#parse!} when invalid parameters should interrupt the operation. It returns the filtered argument hash or raises {ruby Protocol::Content::Parameters::ValidationError}, which retains the complete result:
+Use {ruby Protocol::Content::Parameters::Model#parse!} when invalid parameters should interrupt the operation. It returns the filtered argument hash or raises {ruby Protocol::Content::Parameters::ValidationError}, which retains the complete result:
 
 ``` ruby
 arguments = parameters.parse!(media_type, input)
@@ -94,6 +94,18 @@ end
 ```
 
 A converter should return the converted value or raise `ArgumentError` or `TypeError`. Conversion failures are included in the result as `invalid_type` errors.
+
+Reusable type conversions can be supplied to the builder. Converted values must match the declared type:
+
+``` ruby
+types = Protocol::Content::Parameters::TYPES.merge(
+	Date => ->(value){Date.iso8601(value)}
+)
+
+parameters = Protocol::Content::Parameters.build(types:) do
+	field "date", Date
+end
+```
 
 ## Handle Uploads
 

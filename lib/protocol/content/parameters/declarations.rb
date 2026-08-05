@@ -3,11 +3,9 @@
 # Released under the MIT License.
 # Copyright, 2026, by Samuel Williams.
 
-require_relative "type"
-
 module Protocol
 	module Content
-		class Parameters
+		module Parameters
 			OMITTED = Object.new.freeze
 			
 			class UploadedValue
@@ -62,7 +60,7 @@ module Protocol
 			class Field
 				def initialize(name, type, required:, nullable:)
 					@name = name
-					@type = Type.for(type)
+					@type = type
 					@required = required
 					@nullable = nullable
 				end
@@ -184,14 +182,10 @@ module Protocol
 			end
 			
 			class ArrayField
-				def initialize(name, type, definition, required:, nullable:)
+				def initialize(name, type, model, required:, nullable:)
 					@name = name
-					
-					if type
-						@type = Type.for(type)
-					end
-					
-					@definition = definition
+					@type = type
+					@model = model
 					@required = required
 					@nullable = nullable
 				end
@@ -204,7 +198,7 @@ module Protocol
 				
 				def accepts_upload?(path)
 					# Uploads in arrays must target a declared field on an anonymous element:
-					unless @definition
+					unless @model
 						return false
 					end
 					
@@ -214,7 +208,7 @@ module Protocol
 						return false
 					end
 					
-					return @definition.accepts_upload?(remaining)
+					return @model.accepts_upload?(remaining)
 				end
 				
 				def apply(value, output, errors, path)
@@ -245,8 +239,8 @@ module Protocol
 						end
 						
 						# Nested arrays validate each element as its own argument hierarchy:
-						if @definition
-							result << @definition.apply(item, errors, item_path)
+						if @model
+							result << @model.apply(item, errors, item_path)
 						elsif @type
 							# Typed arrays reject nil rather than passing it to coercion:
 							if item.nil?
@@ -272,8 +266,8 @@ module Protocol
 				def freeze
 					@name.freeze
 					
-					if @definition
-						@definition.freeze
+					if @model
+						@model.freeze
 					end
 					
 					super
@@ -282,9 +276,9 @@ module Protocol
 			end
 			
 			class Nested
-				def initialize(name, definition, required:, nullable:)
+				def initialize(name, model, required:, nullable:)
 					@name = name
-					@definition = definition
+					@model = model
 					@required = required
 					@nullable = nullable
 				end
@@ -296,11 +290,11 @@ module Protocol
 				end
 				
 				def accepts_upload?(path)
-					unless @definition
+					unless @model
 						return false
 					end
 					
-					return @definition.accepts_upload?(path)
+					return @model.accepts_upload?(path)
 				end
 				
 				def apply(value, output, errors, path)
@@ -320,8 +314,8 @@ module Protocol
 						return
 					end
 					
-					if @definition
-						output[@name] = @definition.apply(value, errors, path)
+					if @model
+						output[@name] = @model.apply(value, errors, path)
 					else
 						output[@name] = Values.materialize(value)
 					end
@@ -330,148 +324,15 @@ module Protocol
 				def freeze
 					@name.freeze
 					
-					if @definition
-						@definition.freeze
+					if @model
+						@model.freeze
 					end
 					
 					super
 				end
 			end
 			
-			class Definition
-				def initialize(strict: false)
-					@strict = strict
-					@declarations = {}
-				end
-				
-				attr :strict
-				
-				def field(name, type = Object, required: false, nullable: false)
-					name = name.to_s
-					return add(Field.new(name, type, required:, nullable:))
-				end
-				
-				def upload(name, required: false)
-					name = name.to_s
-					return add(Upload.new(name, required:))
-				end
-				
-				def uploads(name, required: false)
-					name = name.to_s
-					return add(Uploads.new(name, required:))
-				end
-				
-				def array(name, type = nil, required: false, nullable: false, strict: @strict, &block)
-					name = name.to_s
-					
-					if block
-						# A block defines the element shape and cannot be combined with conversion:
-						if type
-							raise ArgumentError, "An array cannot declare both an element type and nested fields!"
-						end
-						
-						definition = Definition.new(strict:)
-						definition.instance_eval(&block)
-					end
-					
-					return add(ArrayField.new(name, type, definition, required:, nullable:))
-				end
-				
-				def nested(name, required: false, nullable: false, strict: @strict, &block)
-					name = name.to_s
-					
-					if block
-						definition = Definition.new(strict:)
-						definition.instance_eval(&block)
-					end
-					
-					return add(Nested.new(name, definition, required:, nullable:))
-				end
-				
-				def apply(value, errors, path = [])
-					# Parameter declarations always apply to a key/value hierarchy:
-					unless value.is_a?(Hash)
-						errors << Error.new(path, :invalid_type, expected: Hash, value: value)
-						return {}
-					end
-					
-					# Normalize keys before matching them against declarations:
-					input = {}
-					value.each{|key, item| input[key.to_s] = item}
-					output = {}
-					
-					# Apply declared values and collect missing required parameters:
-					@declarations.each do |name, declaration|
-						item_path = path + [name]
-						
-						if input.key?(name)
-							item = input.delete(name)
-							
-							if item.equal?(OMITTED)
-								if declaration.required?
-									errors << Error.new(item_path, :required)
-								end
-							else
-								declaration.apply(item, output, errors, item_path)
-							end
-						elsif declaration.required?
-							errors << Error.new(item_path, :required)
-						end
-					end
-					
-					# Reject remaining undeclared values when strict validation is enabled:
-					input.each do |name, item|
-						if item.equal?(OMITTED)
-							if @strict
-								errors << Error.new(path + [name], :unknown)
-							end
-							
-							next
-						end
-						
-						if @strict
-							errors << Error.new(path + [name], :unknown)
-						end
-					end
-					
-					return output
-				end
-				
-				def accepts_upload?(path)
-					# Walk declarations using the decoded components of the form name:
-					name, *remaining = path
-					
-					unless declaration = @declarations[name]
-						return false
-					end
-					
-					unless declaration.respond_to?(:accepts_upload?)
-						return false
-					end
-					
-					return declaration.accepts_upload?(remaining)
-				end
-				
-				def freeze
-					@declarations.each_value(&:freeze)
-					@declarations.freeze
-					super
-				end
-				
-				private
-				
-				def add(declaration)
-					# Reject ambiguous declarations for the same input name:
-					if @declarations.key?(declaration.name)
-						raise ArgumentError, "Parameter #{declaration.name.inspect} is already declared!"
-					end
-					
-					@declarations[declaration.name] = declaration
-					return declaration
-				end
-			end
-			
-			private_constant :OMITTED, :UploadedValue, :Values, :Type, :Field, :Upload, :Uploads, :ArrayField, :Nested, :Definition
+			private_constant :OMITTED, :UploadedValue, :Values, :Field, :Upload, :Uploads, :ArrayField, :Nested
 		end
 	end
 end
