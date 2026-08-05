@@ -23,7 +23,7 @@ module Protocol
 				# @parameter value [Object] The input value.
 				# @returns [Object] The converted value.
 				# @raises [TypeError] If the value cannot be converted.
-				def convert(value)
+				def call(value)
 					# Preserve values which already have the expected type:
 					if @type === value
 						return value

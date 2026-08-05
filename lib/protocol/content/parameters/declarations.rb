@@ -17,14 +17,6 @@ module Protocol
 			end
 			
 			module Values
-				def self.convert(type, value)
-					if type.respond_to?(:convert)
-						return type.convert(value)
-					else
-						return type.call(value)
-					end
-				end
-				
 				def self.expected_type(type)
 					if type.respond_to?(:type)
 						return type.type
@@ -86,7 +78,7 @@ module Protocol
 					end
 					
 					# Treat input conversion failures as validation errors:
-					output[@name] = Values.convert(@type, value)
+					output[@name] = @type.call(value)
 				rescue ArgumentError, TypeError
 					errors << Error.new(path, :invalid_type, expected: Values.expected_type(@type), value: value)
 				end
@@ -250,7 +242,7 @@ module Protocol
 							
 							begin
 								item = Values.materialize(item)
-								item = Values.convert(@type, item)
+								item = @type.call(item)
 								result << item
 							rescue ArgumentError, TypeError
 								errors << Error.new(item_path, :invalid_type, expected: Values.expected_type(@type), value: item)
