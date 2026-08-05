@@ -40,12 +40,18 @@ module Protocol
 					when Hash
 						result = {}
 						value.each do |key, item|
-							result[key.to_s] = materialize(item) unless item.equal?(OMITTED)
+							# Remove omitted uploads while preserving the surrounding hierarchy:
+							unless item.equal?(OMITTED)
+								result[key.to_s] = materialize(item)
+							end
 						end
 						return result
 					when Array
+						# Remove omitted uploads while preserving accepted array values:
 						return value.filter_map do |item|
-							materialize(item) unless item.equal?(OMITTED)
+							unless item.equal?(OMITTED)
+								materialize(item)
+							end
 						end
 					else
 						return value
@@ -70,6 +76,7 @@ module Protocol
 				def apply(value, output, errors, path)
 					value = Values.materialize(value)
 					
+					# Reject nil unless the field is explicitly nullable:
 					if value.nil?
 						if @nullable
 							output[@name] = nil
@@ -80,6 +87,7 @@ module Protocol
 						return
 					end
 					
+					# Treat input conversion failures as validation errors:
 					output[@name] = Values.convert(@type, value)
 				rescue ArgumentError, TypeError
 					errors << Error.new(path, :invalid_type, expected: Values.expected_type(@type), value: value)
@@ -109,6 +117,7 @@ module Protocol
 				end
 				
 				def apply(value, output, errors, path)
+					# Only values produced by an accepted upload handler are valid:
 					if value.is_a?(UploadedValue)
 						output[@name] = value.value
 					else
@@ -125,7 +134,11 @@ module Protocol
 			class ArrayField
 				def initialize(name, type, definition, required:, nullable:)
 					@name = name
-					@type = Type.for(type) if type
+					
+					if type
+						@type = Type.for(type)
+					end
+					
 					@definition = definition
 					@required = required
 					@nullable = nullable
@@ -138,13 +151,22 @@ module Protocol
 				end
 				
 				def accepts_upload?(path)
-					return false unless @definition
+					# Uploads in arrays must target a declared field on an anonymous element:
+					unless @definition
+						return false
+					end
+					
 					index, *remaining = path
-					return false unless index&.empty?
+					
+					unless index&.empty?
+						return false
+					end
+					
 					return @definition.accepts_upload?(remaining)
 				end
 				
 				def apply(value, output, errors, path)
+					# Validate the array itself before processing its elements:
 					if value.nil?
 						if @nullable
 							output[@name] = nil
@@ -165,9 +187,16 @@ module Protocol
 					value.each_with_index do |item, index|
 						item_path = path + [index]
 						
+						# Ignore uploads which were not accepted by the declaration:
+						if item.equal?(OMITTED)
+							next
+						end
+						
+						# Nested arrays validate each element as its own argument hierarchy:
 						if @definition
 							result << @definition.apply(item, errors, item_path)
 						elsif @type
+							# Typed arrays reject nil rather than passing it to coercion:
 							if item.nil?
 								errors << Error.new(item_path, :invalid_type, expected: Values.expected_type(@type), value: item)
 								next
@@ -190,7 +219,11 @@ module Protocol
 				
 				def freeze
 					@name.freeze
-					@definition&.freeze
+					
+					if @definition
+						@definition.freeze
+					end
+					
 					super
 				end
 				
@@ -211,11 +244,15 @@ module Protocol
 				end
 				
 				def accepts_upload?(path)
-					return false unless @definition
+					unless @definition
+						return false
+					end
+					
 					return @definition.accepts_upload?(path)
 				end
 				
 				def apply(value, output, errors, path)
+					# Nested declarations require a key/value hierarchy:
 					if value.nil?
 						if @nullable
 							output[@name] = nil
@@ -240,7 +277,11 @@ module Protocol
 				
 				def freeze
 					@name.freeze
-					@definition&.freeze
+					
+					if @definition
+						@definition.freeze
+					end
+					
 					super
 				end
 			end
@@ -267,6 +308,7 @@ module Protocol
 					name = name.to_s
 					
 					if block
+						# A block defines the element shape and cannot be combined with conversion:
 						if type
 							raise ArgumentError, "An array cannot declare both an element type and nested fields!"
 						end
@@ -290,15 +332,18 @@ module Protocol
 				end
 				
 				def apply(value, errors, path = [])
+					# Parameter declarations always apply to a key/value hierarchy:
 					unless value.is_a?(Hash)
 						errors << Error.new(path, :invalid_type, expected: Hash, value: value)
 						return {}
 					end
 					
+					# Normalize keys before matching them against declarations:
 					input = {}
 					value.each{|key, item| input[key.to_s] = item}
 					output = {}
 					
+					# Apply declared values and collect missing required parameters:
 					@declarations.each do |name, declaration|
 						item_path = path + [name]
 						
@@ -306,7 +351,9 @@ module Protocol
 							item = input.delete(name)
 							
 							if item.equal?(OMITTED)
-								errors << Error.new(item_path, :required) if declaration.required?
+								if declaration.required?
+									errors << Error.new(item_path, :required)
+								end
 							else
 								declaration.apply(item, output, errors, item_path)
 							end
@@ -315,9 +362,13 @@ module Protocol
 						end
 					end
 					
+					# Reject remaining undeclared values when strict validation is enabled:
 					input.each do |name, item|
 						if item.equal?(OMITTED)
-							errors << Error.new(path + [name], :unknown) if @strict
+							if @strict
+								errors << Error.new(path + [name], :unknown)
+							end
+							
 							next
 						end
 						
@@ -330,10 +381,17 @@ module Protocol
 				end
 				
 				def accepts_upload?(path)
+					# Walk declarations using the decoded components of the form name:
 					name, *remaining = path
-					return false unless name
-					return false unless declaration = @declarations[name]
-					return false unless declaration.respond_to?(:accepts_upload?)
+					
+					unless declaration = @declarations[name]
+						return false
+					end
+					
+					unless declaration.respond_to?(:accepts_upload?)
+						return false
+					end
+					
 					return declaration.accepts_upload?(remaining)
 				end
 				
@@ -346,6 +404,7 @@ module Protocol
 				private
 				
 				def add(declaration)
+					# Reject ambiguous declarations for the same input name:
 					if @declarations.key?(declaration.name)
 						raise ArgumentError, "Parameter #{declaration.name.inspect} is already declared!"
 					end

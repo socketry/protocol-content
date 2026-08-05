@@ -249,6 +249,14 @@ describe Protocol::Content::Parameters do
 		end
 	end
 	
+	it "returns valid arguments from parse!" do
+		parameters = subject.build do
+			field "name", String
+		end
+		
+		expect(parameters.parse!("application/json", StringIO.new('{"name":"Samuel"}'))).to be == {"name" => "Samuel"}
+	end
+	
 	it "supports custom converters" do
 		converter = ->(value){value.upcase}
 		
@@ -267,6 +275,17 @@ describe Protocol::Content::Parameters do
 		end
 		
 		result = parse_json(parameters, '{"code":"abc"}')
+		
+		expect(result.arguments).to be == {}
+		expect(result.errors.map(&:code)).to be == [:invalid_type]
+	end
+	
+	it "rejects implicit integer conversion" do
+		parameters = subject.build do
+			field "age", Integer
+		end
+		
+		result = parse_json(parameters, '{"age":true}')
 		
 		expect(result.arguments).to be == {}
 		expect(result.errors.map(&:code)).to be == [:invalid_type]
@@ -436,6 +455,62 @@ describe Protocol::Content::Parameters do
 		
 		expect(missing.errors.map(&:code)).to be == [:required]
 		expect(invalid.errors.map(&:code)).to be == [:invalid_type]
+	end
+	
+	it "requires handled uploads" do
+		parameters = subject.build do
+			upload "avatar", required: true
+		end
+		body = multipart_body([
+			{
+				"Content-Disposition" => 'form-data; name="avatar"; filename="avatar.txt"',
+				"Content-Type" => "text/plain"
+			},
+			"avatar"
+		])
+		media_type = "multipart/form-data; boundary=#{BOUNDARY}"
+		
+		result = parameters.parse(media_type, StringIO.new(body))
+		
+		expect(result.arguments).to be == {}
+		expect(result.errors.map(&:code)).to be == [:required]
+	end
+	
+	it "rejects uploads targeting non-upload declarations" do
+		parameters = subject.build do
+			field "title", String
+			nested "metadata"
+			array "attachments"
+			array "users" do
+				upload "avatar"
+			end
+		end
+		body = multipart_body(
+			[{
+				"Content-Disposition" => 'form-data; name="title"; filename="title.txt"',
+				"Content-Type" => "text/plain"
+			}, "title"],
+			[{
+				"Content-Disposition" => 'form-data; name="metadata[avatar]"; filename="avatar.txt"',
+				"Content-Type" => "text/plain"
+			}, "avatar"],
+			[{
+				"Content-Disposition" => 'form-data; name="attachments[]"; filename="attachment.txt"',
+				"Content-Type" => "text/plain"
+			}, "attachment"],
+			[{
+				"Content-Disposition" => 'form-data; name="users[avatar]"; filename="avatar.txt"',
+				"Content-Type" => "text/plain"
+			}, "avatar"]
+		)
+		media_type = "multipart/form-data; boundary=#{BOUNDARY}"
+		
+		result = parameters.parse(media_type, StringIO.new(body)) do
+			raise "The handler should not be called!"
+		end
+		
+		expect(result.arguments).to be == {"metadata" => {}, "attachments" => []}
+		expect(result.errors.map(&:path)).to be == [["users"]]
 	end
 	
 	it "discards and omits declared uploads without a handler" do

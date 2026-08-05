@@ -84,6 +84,7 @@ module Protocol
 					if value.is_a?(Protocol::Multipart::FormData::Upload)
 						path = Protocol::URL::Encoding.split(name)
 						
+						# Only process uploads accepted by an explicit declaration:
 						if upload_handler && @definition.accepts_upload?(path)
 							UploadedValue.new(upload_handler.call(name, value))
 						else
@@ -107,7 +108,10 @@ module Protocol
 			# @raises [ValidationError] If validation fails.
 			def parse!(media_type, input, &block)
 				result = parse(media_type, input, &block)
-				return result.arguments if result.valid?
+				
+				if result.valid?
+					return result.arguments
+				end
 				
 				raise ValidationError, result
 			end

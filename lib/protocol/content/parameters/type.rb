@@ -22,7 +22,11 @@ module Protocol
 				# @parameter type [Object] The declared type or converter.
 				# @returns [Type | Object] A value responding to `#call`.
 				def self.for(type)
-					return type if type.respond_to?(:call)
+					# Preserve custom converters without wrapping them:
+					if type.respond_to?(:call)
+						return type
+					end
+					
 					return @types.fetch(type){new(type)}
 				end
 				
@@ -42,11 +46,18 @@ module Protocol
 				# @returns [Object] The converted value.
 				# @raises [TypeError] If the value cannot be converted.
 				def convert(value)
-					return value if @type === value
+					# Preserve values which already have the expected type:
+					if @type === value
+						return value
+					end
 					
 					if @converter
 						value = @converter.call(value)
-						return value if @type === value
+						
+						# Ensure converters produce the type they declare:
+						if @type === value
+							return value
+						end
 					end
 					
 					raise TypeError, "Could not convert #{value.inspect} to #{@type}!"
@@ -58,7 +69,11 @@ module Protocol
 			end
 			
 			Type.register(Integer) do |value|
-				raise TypeError unless value.is_a?(String)
+				# Reject non-string values rather than relying on implicit numeric coercion:
+				unless value.is_a?(String)
+					raise TypeError
+				end
+				
 				Integer(value, 10)
 			end
 			
