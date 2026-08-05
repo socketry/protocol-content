@@ -81,7 +81,7 @@ user.update(arguments["user"])
 
 ## Convert Fields
 
-Built-in converters support `String`, `Integer`, and `Float`. A custom converter can be supplied as any object responding to `#call`:
+Built-in types match `String` values exactly and convert compatible values to `Integer` and `Float`. A custom converter can be supplied as any object responding to `#call`:
 
 ``` ruby
 require "date"

@@ -72,7 +72,7 @@ describe Protocol::Content::Parameters do
 		expect(result.errors.map(&:path)).to be == [["required"]]
 	end
 	
-	it "converts string and floating point fields" do
+	it "matches string fields and converts floating point fields" do
 		parameters = subject.build do
 			field "name", String
 			field "ratio", Float
@@ -80,7 +80,8 @@ describe Protocol::Content::Parameters do
 		
 		result = parse_json(parameters, '{"name":123,"ratio":"1.5"}')
 		
-		expect(result.arguments).to be == {"name" => "123", "ratio" => 1.5}
+		expect(result.arguments).to be == {"ratio" => 1.5}
+		expect(result.errors.map(&:path)).to be == [["name"]]
 	end
 	
 	it "rejects values without a type conversion" do
@@ -168,9 +169,10 @@ describe Protocol::Content::Parameters do
 		result = parse_json(parameters, '{"tags":["one",2],"metadata":[{"enabled":true},[1,2]]}')
 		
 		expect(result.arguments).to be == {
-			"tags" => ["one", "2"],
+			"tags" => ["one"],
 			"metadata" => [{"enabled" => true}, [1, 2]],
 		}
+		expect(result.errors.map(&:path)).to be == [["tags", 1]]
 	end
 	
 	it "validates nested array values" do

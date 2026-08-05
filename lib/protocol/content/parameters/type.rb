@@ -64,10 +64,6 @@ module Protocol
 				end
 			end
 			
-			Type.register(String) do |value|
-				String(value)
-			end
-			
 			Type.register(Integer) do |value|
 				# Reject non-string values rather than relying on implicit numeric coercion:
 				unless value.is_a?(String)
