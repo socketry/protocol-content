@@ -40,20 +40,12 @@ module Protocol
 				
 				# Declare a streaming file upload.
 				# @parameter name [String] The upload field name.
-				# @parameter required [Boolean] Whether the upload must be present.
-				# @returns [Field] The upload field.
-				def upload(name, required: false)
-					name = name.to_s
-					return add(UploadField.new(name, required:, multiple: false))
-				end
-				
-				# Declare a collection of streaming file uploads.
-				# @parameter name [String] The upload collection field name.
 				# @parameter required [Boolean] Whether at least one handled upload must be present.
-				# @returns [Field] The upload collection field.
-				def uploads(name, required: false)
+				# @parameter multiple [Boolean] Whether the field accepts multiple uploads using anonymous array notation.
+				# @returns [Field] The upload field.
+				def upload(name, required: false, multiple: false)
 					name = name.to_s
-					return add(UploadField.new(name, required:, multiple: true))
+					return add(UploadField.new(name, required:, multiple:))
 				end
 				
 				# Declare an array of scalar values or nested argument hierarchies.

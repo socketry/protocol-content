@@ -394,7 +394,7 @@ describe Protocol::Content::Parameters do
 	
 	it "collects handled upload arrays" do
 		parameters = subject.build do
-			uploads "pictures"
+			upload "pictures", multiple: true
 		end
 		body = multipart_body(
 			[{
@@ -423,7 +423,7 @@ describe Protocol::Content::Parameters do
 	it "supports nested upload arrays" do
 		parameters = subject.build do
 			nested "gallery" do
-				uploads "pictures"
+				upload "pictures", multiple: true
 			end
 		end
 		body = multipart_body([{
@@ -540,7 +540,7 @@ describe Protocol::Content::Parameters do
 	
 	it "requires at least one handled upload in a collection" do
 		parameters = subject.build do
-			uploads "pictures", required: true
+			upload "pictures", required: true, multiple: true
 		end
 		body = multipart_body([{
 			"Content-Disposition" => 'form-data; name="pictures[]"; filename="picture.txt"',
@@ -556,7 +556,7 @@ describe Protocol::Content::Parameters do
 	
 	it "rejects regular values in upload collections" do
 		parameters = subject.build do
-			uploads "pictures", required: true
+			upload "pictures", required: true, multiple: true
 		end
 		
 		missing = parse_json(parameters, "{}")
