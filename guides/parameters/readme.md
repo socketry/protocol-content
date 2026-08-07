@@ -109,7 +109,7 @@ end
 
 ## Handle Uploads
 
-Uploads must be declared explicitly. Undeclared uploads are consumed and omitted without invoking the upload handler:
+Uploads must be declared explicitly. Undeclared uploads are consumed without invoking the upload handler and omitted from the resulting values. Strict models also report undeclared uploads as `unknown`; non-strict models silently discard them:
 
 ``` ruby
 parameters = Protocol::Content::Parameters.build do
