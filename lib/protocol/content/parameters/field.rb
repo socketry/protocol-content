@@ -238,6 +238,8 @@ module Protocol
 				end
 				
 				def freeze
+					return self if self.frozen?
+					
 					if @model
 						@model.freeze
 					end
@@ -287,6 +289,8 @@ module Protocol
 				end
 				
 				def freeze
+					return self if self.frozen?
+					
 					if @model
 						@model.freeze
 					end

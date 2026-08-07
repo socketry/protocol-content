@@ -148,6 +148,8 @@ module Protocol
 				# Freeze this model and its fields.
 				# @returns [self] The frozen model.
 				def freeze
+					return self if self.frozen?
+					
 					@parser.freeze
 					@fields.each_value(&:freeze)
 					@fields.freeze

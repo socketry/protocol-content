@@ -67,6 +67,8 @@ module Protocol
 			# Freeze the parser and its handler registry.
 			# @returns [self] The frozen parser.
 			def freeze
+				return self if self.frozen?
+				
 				@handlers.freeze
 				super
 			end
