@@ -15,7 +15,7 @@ module Protocol
 				# @parameter code [Symbol] The machine-readable error code.
 				# @parameter details [Hash] Additional error details.
 				def initialize(path, code, **details)
-					@path = path.freeze
+					@path = path
 					@code = code
 					@details = details.freeze
 				end

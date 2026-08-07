@@ -44,6 +44,13 @@ describe Protocol::Content::Parameters do
 		expect(parameters.fields.keys.first).to be(:frozen?)
 	end
 	
+	it "does not freeze caller-owned error paths" do
+		path = ["name"]
+		subject::Error.new(path, :invalid_type)
+		
+		expect(path).not.to be(:frozen?)
+	end
+	
 	it "filters unknown fields and converts declared fields" do
 		parameters = subject.build(strict: false) do
 			field "name", String
