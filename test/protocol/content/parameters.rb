@@ -415,6 +415,7 @@ describe Protocol::Content::Parameters do
 			expect(name).to be == "user[avatar]"
 			expect(upload).to be_a(subject::Upload)
 			expect(upload.headers["content-type"].type).to be == "text/plain"
+			expect(upload.declared_media_type.name).to be == "text/plain"
 			expect(upload.media_type.name).to be == "text/plain"
 			content = upload.each.to_a.join
 			expect(upload).to be(:ended?)
@@ -443,7 +444,7 @@ describe Protocol::Content::Parameters do
 	
 	it "accepts uploads with compatible media types" do
 		parameters = subject.build do
-			upload "avatar", media_types: ["image/*"]
+			upload "avatar", accept: "image/*"
 		end
 		body = multipart_body([{
 			"Content-Disposition" => 'form-data; name="avatar"; filename="avatar.png"',
@@ -459,9 +460,56 @@ describe Protocol::Content::Parameters do
 		expect(result.value).to be == {"avatar" => "image"}
 	end
 	
+	it "infers missing and generic media types from filenames" do
+		parameters = subject.build do
+			upload "pictures", multiple: true, accept: "image/*"
+		end
+		body = multipart_body(
+			[{
+				"Content-Disposition" => 'form-data; name="pictures[]"; filename="first.png"'
+			}, "first"],
+			[{
+				"Content-Disposition" => 'form-data; name="pictures[]"; filename="second.jpg"',
+				"Content-Type" => "application/octet-stream"
+			}, "second"]
+		)
+		media_type = "multipart/form-data; boundary=#{BOUNDARY}"
+		declarations = []
+		inferences = []
+		
+		result = parameters.parse(media_type, StringIO.new(body)) do |_name, upload|
+			declarations << upload.declared_media_type&.name
+			inferences << upload.media_type.name
+			upload.each.to_a.join
+		end
+		
+		expect(result).to be(:valid?)
+		expect(result.value).to be == {"pictures" => ["first", "second"]}
+		expect(declarations).to be == [nil, "application/octet-stream"]
+		expect(inferences).to be == ["image/png", "image/jpeg"]
+	end
+	
+	it "prefers a specific declared media type over the filename" do
+		parameters = subject.build do
+			upload "avatar", accept: "image/*"
+		end
+		body = multipart_body([{
+			"Content-Disposition" => 'form-data; name="avatar"; filename="avatar.png"',
+			"Content-Type" => "text/plain"
+		}, "not an image"])
+		media_type = "multipart/form-data; boundary=#{BOUNDARY}"
+		
+		result = parameters.parse(media_type, StringIO.new(body)) do
+			raise "The rejected upload should not be yielded!"
+		end
+		
+		expect(result.errors.map(&:code)).to be == [:unsupported_media_type]
+		expect(result.errors.first.details[:media_type].name).to be == "text/plain"
+	end
+	
 	it "rejects missing and unsupported upload media types" do
 		parameters = subject.build do
-			upload "pictures", required: true, multiple: true, media_types: ["image/png"]
+			upload "pictures", required: true, multiple: true, accept: ["image/png"]
 		end
 		body = multipart_body(
 			[{

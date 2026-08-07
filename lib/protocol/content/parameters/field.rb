@@ -55,18 +55,18 @@ module Protocol
 			end
 			
 			class UploadField < Field
-				def initialize(name, required:, multiple:, media_types:, size_limit:)
+				def initialize(name, required:, multiple:, accept:, size_limit:)
 					super(name, required:)
 					@multiple = multiple
-					@media_types = media_types
+					@accept = accept
 					@size_limit = size_limit
 				end
 				
 				def prepare(upload)
 					upload = Upload.new(upload, size_limit: @size_limit)
 					
-					if @media_types && (!upload.media_type || !@media_types.any?{|media_type| media_type.match?(upload.media_type)})
-						return Value::Invalid.new(:unsupported_media_type, media_type: upload.media_type, accepted: @media_types)
+					if @accept && (!upload.media_type || !@accept.any?{|media_range| media_range.match?(upload.media_type)})
+						return Value::Invalid.new(:unsupported_media_type, media_type: upload.media_type, accepted: @accept)
 					end
 					
 					return upload
@@ -108,9 +108,9 @@ module Protocol
 				def freeze
 					return self if self.frozen?
 					
-					if @media_types
-						@media_types.each(&:freeze)
-						@media_types.freeze
+					if @accept
+						@accept.each(&:freeze)
+						@accept.freeze
 					end
 					
 					super

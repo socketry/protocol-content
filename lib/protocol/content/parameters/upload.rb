@@ -4,6 +4,7 @@
 # Copyright, 2026, by Samuel Williams.
 
 require "protocol/media/type"
+require "protocol/media/registry"
 require "protocol/multipart/readable"
 
 module Protocol
@@ -12,6 +13,9 @@ module Protocol
 			# A field-constrained streaming upload.
 			class Upload
 				include Protocol::Multipart::Readable
+				
+				GENERIC_MEDIA_TYPE = "application/octet-stream"
+				private_constant :GENERIC_MEDIA_TYPE
 				
 				# Raised when a streaming upload exceeds its field size limit.
 				class LimitError < StandardError
@@ -24,9 +28,21 @@ module Protocol
 					@delegate = delegate
 					@size_limit = size_limit
 					@size = 0
+					@declared_media_type = nil
 					
 					if header = delegate.headers["content-type"]
-						@media_type = Protocol::Media::Type.parse(header.to_s)
+						@declared_media_type = Protocol::Media::Type.parse(header.to_s)
+					end
+					
+					@media_type = @declared_media_type
+					
+					# Fall back to the submitted filename when the declared type carries no useful classification:
+					if !@media_type || @media_type.name == GENERIC_MEDIA_TYPE
+						if record = Protocol::Media::Registry.for_path(self.filename)
+							if record.type.name != GENERIC_MEDIA_TYPE
+								@media_type = record.type
+							end
+						end
 					end
 				end
 				
@@ -40,7 +56,10 @@ module Protocol
 					return @delegate.headers
 				end
 				
-				# The submitted media type, if declared.
+				# The media type declared by the submitting client, if present.
+				attr :declared_media_type
+				
+				# The declared media type, or the type inferred from the filename when the declaration is absent or generic.
 				attr :media_type
 				
 				# The maximum accepted size, if configured.
