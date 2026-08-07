@@ -28,6 +28,6 @@ Gem::Specification.new do |spec|
 	
 	spec.add_dependency "json", "~> 2.0"
 	spec.add_dependency "protocol-media", "~> 0.1"
-	spec.add_dependency "protocol-multipart", "~> 0.6"
+	spec.add_dependency "protocol-multipart", "~> 0.7"
 	spec.add_dependency "protocol-url", "~> 0.10"
 end

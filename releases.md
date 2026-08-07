@@ -4,6 +4,7 @@
 
   - Add declarative content parameter filtering, conversion, validation, and upload handling.
   - Add exact enumeration validation and input mapping for content parameters.
+  - Add field-specific upload media type and size constraints.
 
 ## v0.1.0
 

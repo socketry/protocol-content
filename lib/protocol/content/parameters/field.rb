@@ -19,8 +19,8 @@ module Protocol
 					return @required
 				end
 				
-				def accepts_upload?(path)
-					return false
+				def upload_field(path)
+					return nil
 				end
 				
 			end
@@ -55,21 +55,44 @@ module Protocol
 			end
 			
 			class UploadField < Field
-				def initialize(name, required:, multiple:)
+				def initialize(name, required:, multiple:, media_types:, size_limit:)
 					super(name, required:)
 					@multiple = multiple
+					@media_types = media_types
+					@size_limit = size_limit
 				end
 				
-				def accepts_upload?(path)
+				def prepare(upload)
+					upload = Upload.new(upload, size_limit: @size_limit)
+					
+					if @media_types && (!upload.media_type || !@media_types.any?{|media_type| media_type.match?(upload.media_type)})
+						return Value::Invalid.new(:unsupported_media_type, media_type: upload.media_type, accepted: @media_types)
+					end
+					
+					return upload
+				end
+				
+				def upload_field(path)
 					if @multiple
 						# Upload collections require anonymous array notation:
-						return path == [""]
+						accepted = (path == [""])
 					else
-						return path.empty?
+						accepted = path.empty?
 					end
+					
+					if accepted
+						return self
+					end
+					
+					return nil
 				end
 				
 				def apply(value, output, errors, path)
+					if value.is_a?(Value::Invalid)
+						errors << Error.new(path, value.code, **value.details)
+						return
+					end
+					
 					if @multiple
 						return apply_multiple(value, output, errors, path)
 					end
@@ -80,6 +103,17 @@ module Protocol
 					else
 						errors << Error.new(path, :invalid_type, expected: :upload, value: Value.materialize(value))
 					end
+				end
+				
+				def freeze
+					return self if self.frozen?
+					
+					if @media_types
+						@media_types.each(&:freeze)
+						@media_types.freeze
+					end
+					
+					super
 				end
 				
 				private
@@ -101,11 +135,15 @@ module Protocol
 					end
 					
 					result = []
+					invalid = false
 					
 					value.each_with_index do |item, index|
 						case item
 						when Value::Uploaded
 							result << item.value
+						when Value::Invalid
+							invalid = true
+							errors << Error.new(path + [index], item.code, **item.details)
 						when Value::OMITTED
 							# Unhandled uploads are consumed by the parser and omitted here:
 							next
@@ -115,7 +153,7 @@ module Protocol
 					end
 					
 					# Required collections need at least one successfully handled upload:
-					if @required && result.empty?
+					if @required && result.empty? && !invalid
 						errors << Error.new(path, :required)
 					end
 					
@@ -132,19 +170,19 @@ module Protocol
 					@nullable = nullable
 				end
 				
-				def accepts_upload?(path)
+				def upload_field(path)
 					# Uploads in arrays must target a declared field on an anonymous element:
 					unless @model
-						return false
+						return nil
 					end
 					
 					index, *remaining = path
 					
 					unless index&.empty?
-						return false
+						return nil
 					end
 					
-					return @model.accepts_upload?(remaining)
+					return @model.upload_field(remaining)
 				end
 				
 				def apply(value, output, errors, path)
@@ -216,12 +254,12 @@ module Protocol
 					@nullable = nullable
 				end
 				
-				def accepts_upload?(path)
+				def upload_field(path)
 					unless @model
-						return false
+						return nil
 					end
 					
-					return @model.accepts_upload?(path)
+					return @model.upload_field(path)
 				end
 				
 				def apply(value, output, errors, path)

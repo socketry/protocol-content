@@ -9,6 +9,16 @@ module Protocol
 			module Value
 				OMITTED = Object.new.freeze
 				
+				class Invalid
+					def initialize(code, **details)
+						@code = code
+						@details = details
+					end
+					
+					attr :code
+					attr :details
+				end
+				
 				class Uploaded
 					def initialize(value)
 						@value = value

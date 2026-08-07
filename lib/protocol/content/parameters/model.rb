@@ -35,8 +35,20 @@ module Protocol
 							path = Protocol::URL::Encoding.split(name)
 							
 							# Only process uploads accepted by an explicit field:
-							if upload_handler && accepts_upload?(path)
-								Value::Uploaded.new(upload_handler.call(name, item))
+							if upload_handler && field = upload_field(path)
+								upload = field.prepare(item)
+								
+								if upload.is_a?(Value::Invalid)
+									upload
+								else
+									begin
+										stored = upload_handler.call(name, upload)
+										upload.discard
+										Value::Uploaded.new(stored)
+									rescue Upload::LimitError
+										Value::Invalid.new(:too_large, limit: upload.size_limit, size: upload.size)
+									end
+								end
 							else
 								Value::OMITTED
 							end
@@ -116,14 +128,21 @@ module Protocol
 				# @parameter path [Array(String)] The decoded upload path.
 				# @returns [Boolean] Whether the upload is accepted.
 				def accepts_upload?(path)
+					return !!upload_field(path)
+				end
+				
+				# Find the upload field which accepts the given decoded path.
+				# @parameter path [Array(String)] The decoded upload path.
+				# @returns [UploadField | Nil] The accepting upload field.
+				def upload_field(path)
 					# Walk fields using the decoded components of the form name:
 					name, *remaining = path
 					
 					unless field = @fields[name]
-						return false
+						return nil
 					end
 					
-					return field.accepts_upload?(remaining)
+					return field.upload_field(remaining)
 				end
 				
 				# Freeze this model and its fields.
