@@ -579,6 +579,25 @@ describe Protocol::Content::Parameters do
 		expect(invalid_item.errors.map(&:path)).to be == [["pictures", 0], ["pictures"]]
 	end
 	
+	it "rejects regular values mixed with unhandled uploads" do
+		parameters = subject.build do
+			upload "pictures", multiple: true
+		end
+		body = multipart_body(
+			[{"Content-Disposition" => 'form-data; name="pictures[]"'}, "caption"],
+			[{
+				"Content-Disposition" => 'form-data; name="pictures[]"; filename="picture.txt"',
+				"Content-Type" => "text/plain"
+			}, "picture"]
+		)
+		media_type = "multipart/form-data; boundary=#{BOUNDARY}"
+		
+		result = parameters.parse(media_type, StringIO.new(body))
+		
+		expect(result.value).to be == {"pictures" => []}
+		expect(result.errors.map(&:path)).to be == [["pictures", 0]]
+	end
+	
 	it "rejects uploads targeting non-upload declarations" do
 		parameters = subject.build do
 			field "title", String
