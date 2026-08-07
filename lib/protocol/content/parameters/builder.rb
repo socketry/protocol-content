@@ -46,6 +46,14 @@ module Protocol
 					return add(UploadField.new(name, required:, multiple:))
 				end
 				
+				# Construct an enumeration converter from accepted values or an input-to-output mapping.
+				# @parameter values [Array(Object)] The accepted values.
+				# @parameter options [Hash] Additional input-to-output mappings.
+				# @returns [Enumeration] The enumeration converter.
+				def enumeration(*values, **options)
+					return Enumeration.build(*values, **options)
+				end
+				
 				# Declare an array of scalar values or nested argument hierarchies.
 				# @parameter name [String] The array field name.
 				# @parameter type [Module | #call | Nil] The expected element type or converter.

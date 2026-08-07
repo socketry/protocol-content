@@ -79,6 +79,26 @@ arguments = parameters.parse!(media_type, input)
 user.update(arguments["user"])
 ```
 
+## Constrain Enumerations
+
+Use an enumeration to accept an exact set of values:
+
+``` ruby
+parameters = Protocol::Content::Parameters.build do
+	field "status", enumeration("draft", "published")
+end
+```
+
+The hash form maps accepted input values to corresponding output values:
+
+``` ruby
+parameters = Protocol::Content::Parameters.build do
+	field "enabled", enumeration("true" => true, "false" => false)
+end
+```
+
+Enumeration matching is exact. Values not present in the enumeration produce an `invalid_type` error.
+
 ## Convert Fields
 
 Built-in types match `String` values exactly and convert compatible values to `Integer` and `Float`. A custom converter can be supplied as any object responding to `#call`:
