@@ -6,6 +6,7 @@
 require_relative "content/version"
 require_relative "content/error"
 require_relative "content/parser"
+require_relative "content/parameters"
 
 module Protocol
 	# @namespace

@@ -9,6 +9,7 @@ Provides transport-independent parsing for media-typed content.
 Please see the [project documentation](https://socketry.github.io/protocol-content/) for more details.
 
   - [Getting Started](https://socketry.github.io/protocol-content/guides/getting-started/index) - This guide explains how to parse media-typed content using built-in and custom parsers.
+  - [Content Parameters](https://socketry.github.io/protocol-content/guides/parameters/index) - This guide explains how to interpret parsed content as operation-specific arguments.
 
 ## Releases
 
