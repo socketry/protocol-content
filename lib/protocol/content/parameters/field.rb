@@ -95,6 +95,15 @@ module Protocol
 						return
 					end
 					
+					# Omit collections containing only uploads which were not handled:
+					if value.any? && value.all?{|item| item.equal?(Value::OMITTED)}
+						if @required
+							errors << Error.new(path, :required)
+						end
+						
+						return
+					end
+					
 					result = []
 					
 					value.each_with_index do |item, index|

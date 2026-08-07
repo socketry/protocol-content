@@ -550,7 +550,7 @@ describe Protocol::Content::Parameters do
 		
 		result = parameters.parse(media_type, StringIO.new(body))
 		
-		expect(result.value).to be == {"pictures" => []}
+		expect(result.value).to be == {}
 		expect(result.errors.map(&:code)).to be == [:required]
 	end
 	
@@ -610,6 +610,7 @@ describe Protocol::Content::Parameters do
 		parameters = subject.build(strict: true) do
 			field "name", String
 			upload "avatar"
+			upload "pictures", multiple: true
 		end
 		body = multipart_body(
 			[{"Content-Disposition" => 'form-data; name="name"'}, "Samuel"],
@@ -619,6 +620,13 @@ describe Protocol::Content::Parameters do
 					"Content-Type" => "text/plain"
 				},
 				"avatar"
+			],
+			[
+				{
+					"Content-Disposition" => 'form-data; name="pictures[]"; filename="picture.txt"',
+					"Content-Type" => "text/plain"
+				},
+				"picture"
 			]
 		)
 		media_type = "multipart/form-data; boundary=#{BOUNDARY}"
