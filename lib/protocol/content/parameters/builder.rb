@@ -34,7 +34,6 @@ module Protocol
 				# @parameter nullable [Boolean] Whether the field may be nil.
 				# @returns [Field] The field.
 				def field(name, type = Object, required: false, nullable: false)
-					name = name.to_s
 					return add(ValueField.new(name, resolve(type), required:, nullable:))
 				end
 				
@@ -44,7 +43,6 @@ module Protocol
 				# @parameter multiple [Boolean] Whether the field accepts multiple uploads using anonymous array notation.
 				# @returns [Field] The upload field.
 				def upload(name, required: false, multiple: false)
-					name = name.to_s
 					return add(UploadField.new(name, required:, multiple:))
 				end
 				
@@ -57,8 +55,6 @@ module Protocol
 				# @yields The nested parameter fields for each array element.
 				# @returns [Field] The array field.
 				def array(name, type = nil, required: false, nullable: false, strict: @strict, &block)
-					name = name.to_s
-					
 					if block
 						# A block defines the element shape and cannot be combined with conversion:
 						if type
@@ -81,8 +77,6 @@ module Protocol
 				# @yields The nested parameter fields.
 				# @returns [Field] The nested field.
 				def nested(name, required: false, nullable: false, strict: @strict, &block)
-					name = name.to_s
-					
 					if block
 						model = nested_model(strict:, &block)
 					end

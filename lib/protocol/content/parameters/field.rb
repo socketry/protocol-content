@@ -9,7 +9,7 @@ module Protocol
 			# Common behavior for fields in a parameter model.
 			class Field
 				def initialize(name, required:)
-					@name = name
+					@name = -name.to_s
 					@required = required
 				end
 				
@@ -23,10 +23,6 @@ module Protocol
 					return false
 				end
 				
-				def freeze
-					@name.freeze
-					super
-				end
 			end
 			
 			class ValueField < Field

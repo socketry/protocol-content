@@ -34,6 +34,16 @@ describe Protocol::Content::Parameters do
 		expect(parameters.fields).to be(:frozen?)
 	end
 	
+	it "does not freeze caller-owned field names" do
+		name = String.new("name")
+		parameters = subject.build do
+			field name, String
+		end
+		
+		expect(name).not.to be(:frozen?)
+		expect(parameters.fields.keys.first).to be(:frozen?)
+	end
+	
 	it "filters unknown fields and converts declared fields" do
 		parameters = subject.build(strict: false) do
 			field "name", String
