@@ -300,6 +300,52 @@ describe Protocol::Content::Parameters do
 		expect(result["value"]).to be_a(type)
 	end
 	
+	it "accepts enumerated values" do
+		statuses = ["draft", "published"]
+		enumeration = subject::Enumeration.build(*statuses)
+		parameters = subject.build do
+			field "status", enumeration
+			field "coordinates", enumeration([1, 2])
+		end
+		
+		valid = parse_json(parameters, '{"status":"published","coordinates":[1,2]}')
+		invalid = parse_json(parameters, '{"status":"deleted"}')
+		
+		expect(valid.value).to be == {"status" => "published", "coordinates" => [1, 2]}
+		expect(invalid.value).to be == {}
+		expect(invalid.errors.map(&:path)).to be == [["status"]]
+		expect(invalid.errors.map(&:code)).to be == [:invalid_type]
+	end
+	
+	it "maps enumerated input values" do
+		parameters = subject.build do
+			enumeration = enumeration("pending", "yes" => true, "no" => false, "none" => nil)
+			field "enabled", enumeration
+			field "disabled", enumeration
+			field "unspecified", enumeration
+			field "status", enumeration
+		end
+		
+		result = parse_json(parameters, '{"enabled":"yes","disabled":"no","unspecified":"none","status":"pending"}')
+		
+		expect(result).to be(:valid?)
+		expect(result.value).to be == {
+			"enabled" => true,
+			"disabled" => false,
+			"unspecified" => nil,
+			"status" => "pending",
+		}
+	end
+	
+	it "owns its enumeration mapping" do
+		mapping = {"draft" => "unpublished"}
+		enumeration = subject::Enumeration.build(**mapping)
+		mapping["published"] = "published"
+		
+		expect(enumeration.mapping).to be(:frozen?)
+		expect(enumeration.mapping).to be == {"draft" => "unpublished"}
+	end
+	
 	it "collects custom converter failures" do
 		converter = ->(_value){raise ArgumentError}
 		parameters = subject.build do

@@ -3,6 +3,7 @@
 ## Unreleased
 
   - Add declarative content parameter filtering, conversion, validation, and upload handling.
+  - Add exact enumeration validation and input mapping for content parameters.
 
 ## v0.1.0
 
