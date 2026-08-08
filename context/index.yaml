@@ -12,3 +12,7 @@ files:
   title: Getting Started
   description: This guide explains how to parse media-typed content using built-in
     and custom parsers.
+- path: parameters.md
+  title: Content Parameters
+  description: This guide explains how to build a parameter model that interprets
+    parsed content as operation-specific arguments using <code class="language-ruby">Protocol::Content::Parameters</code>.

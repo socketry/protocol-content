@@ -9,11 +9,18 @@ Provides transport-independent parsing for media-typed content.
 Please see the [project documentation](https://socketry.github.io/protocol-content/) for more details.
 
   - [Getting Started](https://socketry.github.io/protocol-content/guides/getting-started/index) - This guide explains how to parse media-typed content using built-in and custom parsers.
-  - [Content Parameters](https://socketry.github.io/protocol-content/guides/parameters/index) - This guide explains how to interpret parsed content as operation-specific arguments.
+
+  - [Content Parameters](https://socketry.github.io/protocol-content/guides/parameters/index) - This guide explains how to build a parameter model that interprets parsed content as operation-specific arguments using <code class="language-ruby">Protocol::Content::Parameters</code>.
 
 ## Releases
 
 Please see the [project releases](https://socketry.github.io/protocol-content/releases/index) for all releases.
+
+### v0.2.0
+
+  - Add declarative content parameter filtering, conversion, validation, and upload handling.
+  - Add exact enumeration validation and input mapping for content parameters.
+  - Add field-specific upload media type and size constraints.
 
 ### v0.1.0
 
