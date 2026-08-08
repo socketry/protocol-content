@@ -443,8 +443,10 @@ describe Protocol::Content::Parameters do
 	end
 	
 	it "accepts uploads with compatible media types" do
+		accept = Protocol::Media::Set.for(["image/*"])
+		
 		parameters = subject.build do
-			upload "avatar", accept: "image/*"
+			upload "avatar", accept:
 		end
 		body = multipart_body([{
 			"Content-Disposition" => 'form-data; name="avatar"; filename="avatar.png"',
@@ -462,7 +464,7 @@ describe Protocol::Content::Parameters do
 	
 	it "infers missing and generic media types from filenames" do
 		parameters = subject.build do
-			upload "pictures", multiple: true, accept: "image/*"
+			upload "pictures", multiple: true, accept: ["image/*"]
 		end
 		body = multipart_body(
 			[{
@@ -491,7 +493,7 @@ describe Protocol::Content::Parameters do
 	
 	it "prefers a specific declared media type over the filename" do
 		parameters = subject.build do
-			upload "avatar", accept: "image/*"
+			upload "avatar", accept: ["image/*"]
 		end
 		body = multipart_body([{
 			"Content-Disposition" => 'form-data; name="avatar"; filename="avatar.png"',

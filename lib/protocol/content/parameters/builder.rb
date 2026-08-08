@@ -3,6 +3,8 @@
 # Released under the MIT License.
 # Copyright, 2026, by Samuel Williams.
 
+require "protocol/media/set"
+
 module Protocol
 	module Content
 		module Parameters
@@ -41,7 +43,7 @@ module Protocol
 				# @parameter name [String] The upload field name.
 				# @parameter required [Boolean] Whether at least one handled upload must be present.
 				# @parameter multiple [Boolean] Whether the field accepts multiple uploads using anonymous array notation.
-				# @parameter accept [String, #match?, Array(String, #match?) | Nil] The accepted media ranges.
+				# @parameter accept [Protocol::Media::Set | Array(String | Protocol::Media::Range) | Nil] The accepted media ranges.
 				# @parameter size_limit [Integer | Nil] The maximum accepted upload size.
 				# @returns [Field] The upload field.
 				def upload(name, required: false, multiple: false, accept: nil, size_limit: nil)
@@ -50,11 +52,7 @@ module Protocol
 					end
 					
 					if accept
-						unless accept.is_a?(Array)
-							accept = [accept]
-						end
-						
-						accept = accept.map{|media_range| Protocol::Media::Range.for(media_range)}
+						accept = Protocol::Media::Set.for(accept)
 					end
 					
 					return add(UploadField.new(name, required:, multiple:, accept:, size_limit:))

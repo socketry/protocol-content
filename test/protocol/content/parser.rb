@@ -34,11 +34,11 @@ describe Protocol::Content::Parser do
 		end.to raise_exception(FrozenError)
 	end
 	
-	it "parses content using a compatible handler" do
+	it "parses content using a matching handler" do
 		media_type = nil
 		input = Object.new
 		parser = subject.build do |parser|
-			parser.register("text/*") do |candidate, parsed_media_type|
+			parser.register("text/plain") do |candidate, parsed_media_type|
 				media_type = parsed_media_type
 				candidate
 			end

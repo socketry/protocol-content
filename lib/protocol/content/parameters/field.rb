@@ -65,8 +65,16 @@ module Protocol
 				def prepare(upload)
 					upload = Upload.new(upload, size_limit: @size_limit)
 					
-					if @accept && (!upload.media_type || !@accept.any?{|media_range| media_range.match?(upload.media_type)})
-						return Value::Invalid.new(:unsupported_media_type, media_type: upload.media_type, accepted: @accept)
+					if @accept
+						media_type = upload.media_type
+						
+						unless media_type
+							return Value::Invalid.new(:unsupported_media_type, media_type:, accepted: @accept)
+						end
+						
+						unless @accept.include?(media_type)
+							return Value::Invalid.new(:unsupported_media_type, media_type:, accepted: @accept)
+						end
 					end
 					
 					return upload
@@ -103,17 +111,6 @@ module Protocol
 					else
 						errors << Error.new(path, :invalid_type, expected: :upload, value: Value.materialize(value))
 					end
-				end
-				
-				def freeze
-					return self if self.frozen?
-					
-					if @accept
-						@accept.each(&:freeze)
-						@accept.freeze
-					end
-					
-					super
 				end
 				
 				private

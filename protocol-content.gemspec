@@ -27,7 +27,7 @@ Gem::Specification.new do |spec|
 	spec.required_ruby_version = ">= 3.3"
 	
 	spec.add_dependency "json", "~> 2.0"
-	spec.add_dependency "protocol-media", "~> 0.1"
+	spec.add_dependency "protocol-media", "~> 0.2"
 	spec.add_dependency "protocol-media-registry", "~> 0.1"
 	spec.add_dependency "protocol-multipart", "~> 0.7"
 	spec.add_dependency "protocol-url", "~> 0.10"
