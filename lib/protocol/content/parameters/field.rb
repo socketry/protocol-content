@@ -62,7 +62,7 @@ module Protocol
 					@size_limit = size_limit
 				end
 				
-				def prepare(upload)
+				def process(name, upload)
 					upload = Upload.new(upload, size_limit: @size_limit)
 					
 					if @accept
@@ -77,7 +77,13 @@ module Protocol
 						end
 					end
 					
-					return upload
+					begin
+						stored = yield(name, upload)
+						upload.discard
+						return Value::Uploaded.new(stored)
+					rescue Upload::LimitError
+						return Value::Invalid.new(:too_large, limit: upload.size_limit, size: upload.size)
+					end
 				end
 				
 				def upload_field(path)

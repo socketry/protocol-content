@@ -36,19 +36,7 @@ module Protocol
 							
 							# Only process uploads accepted by an explicit field:
 							if upload_handler && field = upload_field(path)
-								upload = field.prepare(item)
-								
-								if upload.is_a?(Value::Invalid)
-									upload
-								else
-									begin
-										stored = upload_handler.call(name, upload)
-										upload.discard
-										Value::Uploaded.new(stored)
-									rescue Upload::LimitError
-										Value::Invalid.new(:too_large, limit: upload.size_limit, size: upload.size)
-									end
-								end
+								field.process(name, item, &upload_handler)
 							else
 								Value::OMITTED
 							end
