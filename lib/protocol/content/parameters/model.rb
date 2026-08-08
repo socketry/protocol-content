@@ -30,13 +30,14 @@ module Protocol
 				# @yields {|name, upload| ...} Each streaming upload. Its return value is inserted into the parsed value.
 				# @returns [Result] The parsed value and validation errors.
 				def parse(media_type, input, &upload_handler)
+					# Replace ephemeral multipart uploads with outcomes which can survive until validation:
 					value = @parser.parse(media_type, input) do |name, item|
 						if item.is_a?(Protocol::Multipart::FormData::Upload)
 							path = Protocol::URL::Encoding.split(name)
 							
 							# Only process uploads accepted by an explicit field:
-							if upload_handler && accepts_upload?(path)
-								Value::Uploaded.new(upload_handler.call(name, item))
+							if upload_handler && field = upload_field(path)
+								field.process(name, item, &upload_handler)
 							else
 								Value::OMITTED
 							end
@@ -45,6 +46,7 @@ module Protocol
 						end
 					end
 					
+					# Apply the model after parsing so ordinary values and upload outcomes follow the same hierarchy:
 					errors = []
 					value = apply(value, errors)
 					return Result.new(value, errors)
@@ -78,9 +80,8 @@ module Protocol
 						return {}
 					end
 					
-					# Normalize keys before matching them against fields:
-					input = {}
-					value.each{|key, item| input[key.to_s] = item}
+					# Copy the input so declared fields can be removed without modifying caller-owned data:
+					input = value.dup
 					output = {}
 					
 					# Apply declared values and collect missing required parameters:
@@ -116,19 +117,28 @@ module Protocol
 				# @parameter path [Array(String)] The decoded upload path.
 				# @returns [Boolean] Whether the upload is accepted.
 				def accepts_upload?(path)
+					return !!upload_field(path)
+				end
+				
+				# Find the upload field which accepts the given decoded path.
+				# @parameter path [Array(String)] The decoded upload path.
+				# @returns [UploadField | Nil] The accepting upload field.
+				def upload_field(path)
 					# Walk fields using the decoded components of the form name:
 					name, *remaining = path
 					
 					unless field = @fields[name]
-						return false
+						return nil
 					end
 					
-					return field.accepts_upload?(remaining)
+					return field.upload_field(remaining)
 				end
 				
 				# Freeze this model and its fields.
 				# @returns [self] The frozen model.
 				def freeze
+					return self if self.frozen?
+					
 					@parser.freeze
 					@fields.each_value(&:freeze)
 					@fields.freeze

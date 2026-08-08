@@ -3,6 +3,8 @@
 # Released under the MIT License.
 # Copyright, 2026, by Samuel Williams.
 
+require "protocol/media/set"
+
 module Protocol
 	module Content
 		module Parameters
@@ -41,9 +43,19 @@ module Protocol
 				# @parameter name [String] The upload field name.
 				# @parameter required [Boolean] Whether at least one handled upload must be present.
 				# @parameter multiple [Boolean] Whether the field accepts multiple uploads using anonymous array notation.
+				# @parameter accept [Protocol::Media::Set | Array(String | Protocol::Media::Range) | Nil] The accepted media ranges.
+				# @parameter size_limit [Integer | Nil] The maximum accepted upload size.
 				# @returns [Field] The upload field.
-				def upload(name, required: false, multiple: false)
-					return add(UploadField.new(name, required:, multiple:))
+				def upload(name, required: false, multiple: false, accept: nil, size_limit: nil)
+					if size_limit && size_limit < 0
+						raise ArgumentError, "Upload size limit must be non-negative!"
+					end
+					
+					if accept
+						accept = Protocol::Media::Set.for(accept)
+					end
+					
+					return add(UploadField.new(name, required:, multiple:, accept:, size_limit:))
 				end
 				
 				# Construct an enumeration converter from accepted values or an input-to-output mapping.

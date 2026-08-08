@@ -19,8 +19,8 @@ module Protocol
 					return @required
 				end
 				
-				def accepts_upload?(path)
-					return false
+				def upload_field(path)
+					return nil
 				end
 				
 			end
@@ -55,34 +55,77 @@ module Protocol
 			end
 			
 			class UploadField < Field
-				def initialize(name, required:, multiple:)
+				def initialize(name, required:, multiple:, accept:, size_limit:)
 					super(name, required:)
 					@multiple = multiple
+					@accept = accept
+					@size_limit = size_limit
 				end
 				
-				def accepts_upload?(path)
-					if @multiple
-						# Upload collections require anonymous array notation:
-						return path == [""]
-					else
-						return path.empty?
+				# Process an upload while its multipart input is available.
+				#
+				# The upload handler must consume or store the streaming upload before parsing can continue. Its return value, or any validation failure, is preserved as an internal value for the later field validation phase.
+				def process(name, upload)
+					upload = Upload.new(upload, size_limit: @size_limit)
+					
+					if @accept
+						media_type = upload.media_type
+						
+						unless media_type
+							return Value::Invalid.new(:unsupported_media_type, media_type:, accepted: @accept)
+						end
+						
+						unless @accept.include?(media_type)
+							return Value::Invalid.new(:unsupported_media_type, media_type:, accepted: @accept)
+						end
+					end
+					
+					begin
+						stored = yield(name, upload)
+						upload.discard
+						return Value::Uploaded.new(stored)
+					rescue Upload::LimitError
+						return Value::Invalid.new(:too_large, limit: upload.size_limit, size: upload.size)
 					end
 				end
 				
+				def upload_field(path)
+					if @multiple
+						# Upload collections require anonymous array notation:
+						accepted = (path == [""])
+					else
+						accepted = path.empty?
+					end
+					
+					if accepted
+						return self
+					end
+					
+					return nil
+				end
+				
 				def apply(value, output, errors, path)
+					# Resolve the outcome produced while the upload was streamed:
 					if @multiple
 						return apply_multiple(value, output, errors, path)
 					end
 					
-					# Only values produced by an accepted upload handler are valid:
-					if value.is_a?(Value::Uploaded)
-						output[@name] = value.value
-					else
-						errors << Error.new(path, :invalid_type, expected: :upload, value: Value.materialize(value))
+					apply_upload(value, errors, path) do |stored|
+						output[@name] = stored
 					end
 				end
 				
 				private
+				
+				# Apply a streaming upload outcome, rejecting ordinary parameter values:
+				def apply_upload(value, errors, path, &block)
+					if value.respond_to?(:apply_upload)
+						return value.apply_upload(errors, path, &block)
+					end
+					
+					errors << Error.new(path, :invalid_type, expected: :upload, value: Value.materialize(value))
+					return false
+				end
 				
 				def apply_multiple(value, output, errors, path)
 					# Upload collections must be represented as arrays by the content parser:
@@ -101,21 +144,16 @@ module Protocol
 					end
 					
 					result = []
+					submitted = false
 					
 					value.each_with_index do |item, index|
-						case item
-						when Value::Uploaded
-							result << item.value
-						when Value::OMITTED
-							# Unhandled uploads are consumed by the parser and omitted here:
-							next
-						else
-							errors << Error.new(path + [index], :invalid_type, expected: :upload, value: Value.materialize(item))
+						if apply_upload(item, errors, path + [index]){|stored| result << stored}
+							submitted = true
 						end
 					end
 					
-					# Required collections need at least one successfully handled upload:
-					if @required && result.empty?
+					# Avoid reporting a required error when an upload was submitted but rejected:
+					if @required && result.empty? && !submitted
 						errors << Error.new(path, :required)
 					end
 					
@@ -132,19 +170,19 @@ module Protocol
 					@nullable = nullable
 				end
 				
-				def accepts_upload?(path)
+				def upload_field(path)
 					# Uploads in arrays must target a declared field on an anonymous element:
 					unless @model
-						return false
+						return nil
 					end
 					
 					index, *remaining = path
 					
 					unless index&.empty?
-						return false
+						return nil
 					end
 					
-					return @model.accepts_upload?(remaining)
+					return @model.upload_field(remaining)
 				end
 				
 				def apply(value, output, errors, path)
@@ -200,6 +238,8 @@ module Protocol
 				end
 				
 				def freeze
+					return self if self.frozen?
+					
 					if @model
 						@model.freeze
 					end
@@ -216,12 +256,12 @@ module Protocol
 					@nullable = nullable
 				end
 				
-				def accepts_upload?(path)
+				def upload_field(path)
 					unless @model
-						return false
+						return nil
 					end
 					
-					return @model.accepts_upload?(path)
+					return @model.upload_field(path)
 				end
 				
 				def apply(value, output, errors, path)
@@ -249,6 +289,8 @@ module Protocol
 				end
 				
 				def freeze
+					return self if self.frozen?
+					
 					if @model
 						@model.freeze
 					end

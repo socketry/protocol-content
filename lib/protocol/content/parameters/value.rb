@@ -6,8 +6,30 @@
 module Protocol
 	module Content
 		module Parameters
+			# Internal values carry upload outcomes from streaming parsing into field validation.
 			module Value
-				OMITTED = Object.new.freeze
+				class Omitted
+					def apply_upload(errors, path)
+						return false
+					end
+				end
+				
+				OMITTED = Omitted.new.freeze
+				
+				class Invalid
+					def initialize(code, **details)
+						@code = code
+						@details = details
+					end
+					
+					attr :code
+					attr :details
+					
+					def apply_upload(errors, path)
+						errors << Error.new(path, @code, **@details)
+						return true
+					end
+				end
 				
 				class Uploaded
 					def initialize(value)
@@ -15,6 +37,11 @@ module Protocol
 					end
 					
 					attr :value
+					
+					def apply_upload(errors, path)
+						yield(@value)
+						return true
+					end
 				end
 				
 				def self.materialize(value)

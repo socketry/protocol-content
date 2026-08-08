@@ -134,7 +134,10 @@ Uploads must be declared explicitly. Uploads not accepted by an upload declarati
 ``` ruby
 parameters = Protocol::Content::Parameters.build do
 	nested "user" do
-		upload "avatar", required: true
+		upload "avatar",
+			required: true,
+			accept: ["image/jpeg", "image/png"],
+			size_limit: 5 * 1024 * 1024
 	end
 	
 	upload "pictures", multiple: true
@@ -146,14 +149,17 @@ When an upload handler is provided, its return value is inserted at the upload's
 ``` ruby
 result = parameters.parse(media_type, input) do |name, upload|
 	stored = uploads.create(name, upload.filename, upload.headers)
-	
-	upload.each do |chunk|
-		stored.write(chunk)
-	end
+	upload.copy_to(stored)
 	
 	stored
 end
 ```
+
+The yielded upload exposes `filename`, `headers`, `declared_media_type`, `media_type`, `size`, `each`, `copy_to`, and `save`. `save` creates a new file exclusively with private permissions and removes partial output when streaming fails. Always choose the destination path independently of the submitted filename.
+
+The `accept:` option takes one or more {ruby Protocol::Media::Range media ranges}, including wildcards such as `image/*`; it does not accept filename-extension patterns. The upload's `declared_media_type` is supplied by the client. When it is absent or `application/octet-stream`, `media_type` is inferred from the submitted filename using {ruby Protocol::Media::Registry}. A specific declared media type takes precedence over the filename.
+
+Both the declared media type and filename are untrusted metadata. Media range matching is useful for classification and early rejection, but it does not validate the uploaded bytes. Inspect, decode, or sanitize the content when its actual format matters. Field size limits complement the parser's transport-wide safety limits and are enforced even when the handler does not consume the upload itself.
 
 For an upload named `user[avatar]`, the stored object is available as `result.dig("user", "avatar")`. An `upload "pictures", multiple: true` declaration accepts `pictures[]` and collects each handler result in `result["pictures"]`. Without an upload handler, uploads are consumed and omitted from the resulting arguments.
 

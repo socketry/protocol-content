@@ -6,6 +6,7 @@
 require "protocol/content"
 
 require "stringio"
+require "tmpdir"
 
 describe Protocol::Content::Parameters do
 	BOUNDARY = "parameters-boundary"
@@ -380,6 +381,20 @@ describe Protocol::Content::Parameters do
 		expect(result.errors.first.code).to be == :invalid_type
 	end
 	
+	it "requires string keys without modifying the input" do
+		parameters = subject.build do
+			field "name", String, required: true
+		end
+		input = {name: "Samuel"}
+		errors = []
+		
+		value = parameters.apply(input, errors)
+		
+		expect(input).to be == {name: "Samuel"}
+		expect(value).to be == {}
+		expect(errors.map(&:code)).to be == [:required, :unknown]
+	end
+	
 	it "returns an empty valid result for empty form content" do
 		parameters = subject.build do
 			field "name", String
@@ -412,7 +427,13 @@ describe Protocol::Content::Parameters do
 		
 		result = parameters.parse(media_type, StringIO.new(body)) do |name, upload|
 			expect(name).to be == "user[avatar]"
-			{name: upload.filename, content: upload.each.to_a.join}
+			expect(upload).to be_a(subject::Upload)
+			expect(upload.headers["content-type"].type).to be == "text/plain"
+			expect(upload.declared_media_type.name).to be == "text/plain"
+			expect(upload.media_type.name).to be == "text/plain"
+			content = upload.each.to_a.join
+			expect(upload).to be(:ended?)
+			{name: upload.filename, content:}
 		end
 		
 		expect(result).to be(:valid?)
@@ -422,6 +443,189 @@ describe Protocol::Content::Parameters do
 				"avatar" => {name: "avatar.txt", content: "avatar"}
 			}
 		}
+	end
+	
+	it "identifies declared upload paths" do
+		parameters = subject.build do
+			field "name", String
+			upload "avatar"
+		end
+		
+		expect(parameters.accepts_upload?(["avatar"])).to be == true
+		expect(parameters.accepts_upload?(["avatar", "nested"])).to be == false
+		expect(parameters.accepts_upload?(["name"])).to be == false
+	end
+	
+	it "accepts uploads with compatible media types" do
+		accept = Protocol::Media::Set.for(["image/*"])
+		
+		parameters = subject.build do
+			upload "avatar", accept:
+		end
+		body = multipart_body([{
+			"Content-Disposition" => 'form-data; name="avatar"; filename="avatar.png"',
+			"Content-Type" => "image/png"
+		}, "image"])
+		media_type = "multipart/form-data; boundary=#{BOUNDARY}"
+		
+		result = parameters.parse(media_type, StringIO.new(body)) do |_name, upload|
+			upload.each.to_a.join
+		end
+		
+		expect(result).to be(:valid?)
+		expect(result.value).to be == {"avatar" => "image"}
+	end
+	
+	it "infers missing and generic media types from filenames" do
+		parameters = subject.build do
+			upload "pictures", multiple: true, accept: ["image/*"]
+		end
+		body = multipart_body(
+			[{
+				"Content-Disposition" => 'form-data; name="pictures[]"; filename="first.png"'
+			}, "first"],
+			[{
+				"Content-Disposition" => 'form-data; name="pictures[]"; filename="second.jpg"',
+				"Content-Type" => "application/octet-stream"
+			}, "second"]
+		)
+		media_type = "multipart/form-data; boundary=#{BOUNDARY}"
+		declarations = []
+		inferences = []
+		
+		result = parameters.parse(media_type, StringIO.new(body)) do |_name, upload|
+			declarations << upload.declared_media_type&.name
+			inferences << upload.media_type.name
+			upload.each.to_a.join
+		end
+		
+		expect(result).to be(:valid?)
+		expect(result.value).to be == {"pictures" => ["first", "second"]}
+		expect(declarations).to be == [nil, "application/octet-stream"]
+		expect(inferences).to be == ["image/png", "image/jpeg"]
+	end
+	
+	it "prefers a specific declared media type over the filename" do
+		parameters = subject.build do
+			upload "avatar", accept: ["image/*"]
+		end
+		body = multipart_body([{
+			"Content-Disposition" => 'form-data; name="avatar"; filename="avatar.png"',
+			"Content-Type" => "text/plain"
+		}, "not an image"])
+		media_type = "multipart/form-data; boundary=#{BOUNDARY}"
+		
+		result = parameters.parse(media_type, StringIO.new(body)) do
+			raise "The rejected upload should not be yielded!"
+		end
+		
+		expect(result.errors.map(&:code)).to be == [:unsupported_media_type]
+		expect(result.errors.first.details[:media_type].name).to be == "text/plain"
+	end
+	
+	it "rejects missing and unsupported upload media types" do
+		parameters = subject.build do
+			upload "pictures", required: true, multiple: true, accept: ["image/png"]
+		end
+		body = multipart_body(
+			[{
+				"Content-Disposition" => 'form-data; name="pictures[]"; filename="first.txt"',
+				"Content-Type" => "text/plain"
+			}, "first"],
+			[{
+				"Content-Disposition" => 'form-data; name="pictures[]"; filename="second.bin"'
+			}, "second"]
+		)
+		media_type = "multipart/form-data; boundary=#{BOUNDARY}"
+		called = false
+		
+		result = parameters.parse(media_type, StringIO.new(body)) do
+			called = true
+		end
+		
+		expect(called).to be == false
+		expect(result.value).to be == {"pictures" => []}
+		expect(result.errors.map(&:path)).to be == [["pictures", 0], ["pictures", 1]]
+		expect(result.errors.map(&:code)).to be == [:unsupported_media_type, :unsupported_media_type]
+		expect(result.errors.map{|error| error.details[:media_type]&.name}).to be == ["text/plain", nil]
+	end
+	
+	it "applies upload field size limits at their boundaries" do
+		parameters = subject.build do
+			upload "file", size_limit: 4
+		end
+		media_type = "multipart/form-data; boundary=#{BOUNDARY}"
+		
+		parse = lambda do |content|
+			body = multipart_body([{
+				"Content-Disposition" => 'form-data; name="file"; filename="data.bin"',
+				"Content-Type" => "application/octet-stream"
+			}, content])
+			
+			parameters.parse(media_type, StringIO.new(body)) do |_name, upload|
+				upload.each.to_a.join
+			end
+		end
+		
+		expect(parse.call("123").value).to be == {"file" => "123"}
+		expect(parse.call("1234").value).to be == {"file" => "1234"}
+		
+		result = parse.call("12345")
+		expect(result.value).to be == {}
+		expect(result.errors.map(&:code)).to be == [:too_large]
+		expect(result.errors.first.details).to be == {limit: 4, size: 5}
+	end
+	
+	it "rejects negative upload field size limits" do
+		expect do
+			subject.build do
+				upload "file", size_limit: -1
+			end
+		end.to raise_exception(ArgumentError, message: be =~ /must be non-negative/)
+	end
+	
+	it "enforces upload size limits when handlers do not consume content" do
+		parameters = subject.build do
+			upload "file", size_limit: 4
+			field "name", String
+		end
+		body = multipart_body(
+			[{
+				"Content-Disposition" => 'form-data; name="file"; filename="data.bin"',
+				"Content-Type" => "application/octet-stream"
+			}, "12345"],
+			[{"Content-Disposition" => 'form-data; name="name"'}, "Samuel"]
+		)
+		media_type = "multipart/form-data; boundary=#{BOUNDARY}"
+		
+		result = parameters.parse(media_type, StringIO.new(body)) do |_name, _upload|
+			:stored
+		end
+		
+		expect(result.value).to be == {"name" => "Samuel"}
+		expect(result.errors.map(&:path)).to be == [["file"]]
+		expect(result.errors.map(&:code)).to be == [:too_large]
+	end
+	
+	it "removes partially saved uploads which exceed field limits" do
+		parameters = subject.build do
+			upload "file", size_limit: 4
+		end
+		body = multipart_body([{
+			"Content-Disposition" => 'form-data; name="file"; filename="data.bin"',
+			"Content-Type" => "application/octet-stream"
+		}, "12345"])
+		media_type = "multipart/form-data; boundary=#{BOUNDARY}"
+		
+		Dir.mktmpdir do |directory|
+			path = File.join(directory, "upload")
+			result = parameters.parse(media_type, StringIO.new(body)) do |_name, upload|
+				upload.save(path)
+			end
+			
+			expect(result.errors.map(&:code)).to be == [:too_large]
+			expect(File.exist?(path)).to be == false
+		end
 	end
 	
 	it "inserts handled uploads into array elements" do
