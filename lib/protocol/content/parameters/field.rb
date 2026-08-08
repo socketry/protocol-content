@@ -106,12 +106,22 @@ module Protocol
 						return apply_multiple(value, output, errors, path)
 					end
 					
-					Value.apply_upload(value, errors, path) do |stored|
+					apply_upload(value, errors, path) do |stored|
 						output[@name] = stored
 					end
 				end
 				
 				private
+				
+				# Apply an upload outcome, rejecting values which do not implement the outcome interface:
+				def apply_upload(value, errors, path, &block)
+					if value.respond_to?(:apply_upload)
+						return value.apply_upload(errors, path, &block)
+					end
+					
+					errors << Error.new(path, :invalid_type, expected: :upload, value: Value.materialize(value))
+					return false
+				end
 				
 				def apply_multiple(value, output, errors, path)
 					# Upload collections must be represented as arrays by the content parser:
@@ -133,7 +143,7 @@ module Protocol
 					submitted = false
 					
 					value.each_with_index do |item, index|
-						if Value.apply_upload(item, errors, path + [index]){|stored| result << stored}
+						if apply_upload(item, errors, path + [index]){|stored| result << stored}
 							submitted = true
 						end
 					end

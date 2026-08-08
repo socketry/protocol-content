@@ -43,16 +43,6 @@ module Protocol
 					end
 				end
 				
-				# Apply an upload outcome, rejecting values which do not implement the outcome interface:
-				def self.apply_upload(value, errors, path, &block)
-					if value.respond_to?(:apply_upload)
-						return value.apply_upload(errors, path, &block)
-					end
-					
-					errors << Error.new(path, :invalid_type, expected: :upload, value: materialize(value))
-					return false
-				end
-				
 				def self.materialize(value)
 					case value
 					when Hash
