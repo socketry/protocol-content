@@ -78,9 +78,8 @@ module Protocol
 						return {}
 					end
 					
-					# Normalize keys before matching them against fields:
-					input = {}
-					value.each{|key, item| input[key.to_s] = item}
+					# Copy the input so declared fields can be removed without modifying caller-owned data:
+					input = value.dup
 					output = {}
 					
 					# Apply declared values and collect missing required parameters:

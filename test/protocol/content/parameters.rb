@@ -381,6 +381,20 @@ describe Protocol::Content::Parameters do
 		expect(result.errors.first.code).to be == :invalid_type
 	end
 	
+	it "requires string keys without modifying the input" do
+		parameters = subject.build do
+			field "name", String, required: true
+		end
+		input = {name: "Samuel"}
+		errors = []
+		
+		value = parameters.apply(input, errors)
+		
+		expect(input).to be == {name: "Samuel"}
+		expect(value).to be == {}
+		expect(errors.map(&:code)).to be == [:required, :unknown]
+	end
+	
 	it "returns an empty valid result for empty form content" do
 		parameters = subject.build do
 			field "name", String
