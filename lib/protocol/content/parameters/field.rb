@@ -62,6 +62,9 @@ module Protocol
 					@size_limit = size_limit
 				end
 				
+				# Process an upload while its multipart input is available.
+				#
+				# The upload handler must consume or store the streaming upload before parsing can continue. Its return value, or any validation failure, is preserved as an internal value for the later field validation phase.
 				def process(name, upload)
 					upload = Upload.new(upload, size_limit: @size_limit)
 					
@@ -102,6 +105,7 @@ module Protocol
 				end
 				
 				def apply(value, output, errors, path)
+					# Resolve the outcome produced while the upload was streamed:
 					if @multiple
 						return apply_multiple(value, output, errors, path)
 					end
@@ -113,7 +117,7 @@ module Protocol
 				
 				private
 				
-				# Apply an upload outcome, rejecting values which do not implement the outcome interface:
+				# Apply a streaming upload outcome, rejecting ordinary parameter values:
 				def apply_upload(value, errors, path, &block)
 					if value.respond_to?(:apply_upload)
 						return value.apply_upload(errors, path, &block)

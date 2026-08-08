@@ -30,6 +30,7 @@ module Protocol
 				# @yields {|name, upload| ...} Each streaming upload. Its return value is inserted into the parsed value.
 				# @returns [Result] The parsed value and validation errors.
 				def parse(media_type, input, &upload_handler)
+					# Replace ephemeral multipart uploads with outcomes which can survive until validation:
 					value = @parser.parse(media_type, input) do |name, item|
 						if item.is_a?(Protocol::Multipart::FormData::Upload)
 							path = Protocol::URL::Encoding.split(name)
@@ -45,6 +46,7 @@ module Protocol
 						end
 					end
 					
+					# Apply the model after parsing so ordinary values and upload outcomes follow the same hierarchy:
 					errors = []
 					value = apply(value, errors)
 					return Result.new(value, errors)

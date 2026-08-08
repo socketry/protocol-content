@@ -6,6 +6,7 @@
 module Protocol
 	module Content
 		module Parameters
+			# Internal values carry upload outcomes from streaming parsing into field validation.
 			module Value
 				class Omitted
 					def apply_upload(errors, path)
