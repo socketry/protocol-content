@@ -7,7 +7,13 @@ module Protocol
 	module Content
 		module Parameters
 			module Value
-				OMITTED = Object.new.freeze
+				class Omitted
+					def apply_upload(errors, path)
+						return false
+					end
+				end
+				
+				OMITTED = Omitted.new.freeze
 				
 				class Invalid
 					def initialize(code, **details)
@@ -17,6 +23,11 @@ module Protocol
 					
 					attr :code
 					attr :details
+					
+					def apply_upload(errors, path)
+						errors << Error.new(path, @code, **@details)
+						return true
+					end
 				end
 				
 				class Uploaded
@@ -25,6 +36,21 @@ module Protocol
 					end
 					
 					attr :value
+					
+					def apply_upload(errors, path)
+						yield(@value)
+						return true
+					end
+				end
+				
+				# Apply an upload outcome, rejecting values which do not implement the outcome interface:
+				def self.apply_upload(value, errors, path, &block)
+					if value.respond_to?(:apply_upload)
+						return value.apply_upload(errors, path, &block)
+					end
+					
+					errors << Error.new(path, :invalid_type, expected: :upload, value: materialize(value))
+					return false
 				end
 				
 				def self.materialize(value)

@@ -96,20 +96,12 @@ module Protocol
 				end
 				
 				def apply(value, output, errors, path)
-					if value.is_a?(Value::Invalid)
-						errors << Error.new(path, value.code, **value.details)
-						return
-					end
-					
 					if @multiple
 						return apply_multiple(value, output, errors, path)
 					end
 					
-					# Only values produced by an accepted upload handler are valid:
-					if value.is_a?(Value::Uploaded)
-						output[@name] = value.value
-					else
-						errors << Error.new(path, :invalid_type, expected: :upload, value: Value.materialize(value))
+					Value.apply_upload(value, errors, path) do |stored|
+						output[@name] = stored
 					end
 				end
 				
@@ -132,25 +124,16 @@ module Protocol
 					end
 					
 					result = []
-					invalid = false
+					submitted = false
 					
 					value.each_with_index do |item, index|
-						case item
-						when Value::Uploaded
-							result << item.value
-						when Value::Invalid
-							invalid = true
-							errors << Error.new(path + [index], item.code, **item.details)
-						when Value::OMITTED
-							# Unhandled uploads are consumed by the parser and omitted here:
-							next
-						else
-							errors << Error.new(path + [index], :invalid_type, expected: :upload, value: Value.materialize(item))
+						if Value.apply_upload(item, errors, path + [index]){|stored| result << stored}
+							submitted = true
 						end
 					end
 					
-					# Required collections need at least one successfully handled upload:
-					if @required && result.empty? && !invalid
+					# Avoid reporting a required error when an upload was submitted but rejected:
+					if @required && result.empty? && !submitted
 						errors << Error.new(path, :required)
 					end
 					
